@@ -1,12 +1,17 @@
+---
 plugin: amazon.aws.aws_ec2
+
 regions:
   - us-east-1
+
 filters:
-  tag:Project: monitoring
+  tag:Project: terraform-grafana-stack
   instance-state-name: running
+
 keyed_groups:
   - key: tags.Role
-    prefix: ''
-    separator: ''
+    prefix: ""
+    separator: ""
+
 compose:
   ansible_host: public_ip_address | default(private_ip_address)
