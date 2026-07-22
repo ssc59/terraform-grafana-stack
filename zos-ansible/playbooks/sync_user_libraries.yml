@@ -1,0 +1,53 @@
+---
+- name: Check existing user library members
+  hosts: zoslab
+  gather_facts: false
+
+  environment: "{{ environment_vars }}"
+
+  collections:
+    - ibm.ibm_zos_core
+
+  vars_files:
+    - ../vars/users.yml
+    - ../vars/datasets.yml
+
+  tasks:
+    - name: Build list of user development libraries
+      ansible.builtin.set_fact:
+        user_libraries: >-
+          {{
+            user_libraries | default([]) +
+            [item.0.userid ~ '.DEV.' ~ item.1.source]
+          }}
+      loop: "{{ racf_users | product(seed_libraries) | list }}"
+      loop_control:
+        label: "{{ item.0.userid }}.DEV.{{ item.1.source }}"
+
+    - name: Show libraries that will be checked
+      ansible.builtin.debug:
+        var: user_libraries
+
+    - name: Find members in team seed libraries
+      ibm.ibm_zos_core.zos_find:
+        pds_patterns: "{{ seed_libraries | map(attribute='dataset') | list }}"
+        patterns:
+          - ".*"
+      register: seed_member_results
+
+    - name: Find existing members in user libraries
+      ibm.ibm_zos_core.zos_find:
+        pds_patterns: "{{ user_libraries }}"
+        patterns:
+          - ".*"
+      register: user_member_results
+
+    - name: Print all currently available variables
+      ansible.builtin.debug:
+        var: vars
+
+    - name: Copy missing seed members
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../tasks/copy_seeds.yml"
+      vars:
+        existing_user_libraries: "{{ user_member_results.data_sets | default([]) }}"

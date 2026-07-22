@@ -1,0 +1,100 @@
+---
+- name: Print all currently available variables
+  ansible.builtin.debug:
+    var: vars
+
+- name: Initialize existing user member list
+  ansible.builtin.set_fact:
+    existing_user_members: []
+
+- name: Build list of existing user members
+  ansible.builtin.set_fact:
+    existing_user_members: >-
+      {{
+        existing_user_members +
+        [item.0.name ~ '(' ~ item.1 ~ ')']
+      }}
+  loop: "{{ query('subelements', existing_user_libraries, 'members', {'skip_missing': true}) }}"
+  loop_control:
+    label: "{{ item.0.name }}({{ item.1 }})"
+
+- name: Preview missing seed members
+  ansible.builtin.debug:
+    msg:
+      - "Source: {{ item.1.0.name }}({{ item.1.1 }})"
+      - "Destination: {{ destination_member }}"
+      - "Will copy: {{ destination_member not in existing_user_members }}"
+  vars:
+    library_source: >-
+      {{
+        seed_libraries
+        | selectattr('dataset', 'equalto', item.1.0.name)
+        | map(attribute='source')
+        | first
+      }}
+    destination_member: >-
+      {{ item.0.userid }}.DEV.{{ library_source }}({{ item.1.1 }})
+  loop: >-
+    {{
+      racf_users
+      | product(
+          query(
+            'subelements',
+            seed_member_results.data_sets | default([]),
+            'members',
+            {'skip_missing': true}
+          )
+        )
+      | list
+    }}
+  loop_control:
+    label: "{{ destination_member }}"
+
+- name: Create user libraries
+  ibm.ibm_zos_core.zos_data_set:
+    name: "{{ item.0.userid }}.DEV.{{ item.1.source }}"
+    state: present
+    type: pdse
+    record_format: fb
+    record_length: 80
+    block_size: 3120
+    space_primary: 5
+    space_secondary: 2
+    space_type: trk
+  loop: "{{ racf_users | product(seed_libraries) | list }}"
+  loop_control:
+    label: "{{ item.0.userid }}.DEV.{{ item.1.source }}"
+
+- name: Copy missing seed members into user libraries
+  ibm.ibm_zos_core.zos_copy:
+    src: "{{ item.1.0.name }}({{ item.1.1 }})"
+    dest: "{{ destination_member }}"
+    remote_src: true
+    force: true
+    force_lock: true
+  vars:
+    library_source: >-
+      {{
+        seed_libraries
+        | selectattr('dataset', 'equalto', item.1.0.name)
+        | map(attribute='source')
+        | first
+      }}
+    destination_member: >-
+      {{ item.0.userid }}.DEV.{{ library_source }}({{ item.1.1 }})
+  loop: >-
+    {{
+      racf_users
+      | product(
+          query(
+            'subelements',
+            seed_member_results.data_sets | default([]),
+            'members',
+            {'skip_missing': true}
+          )
+        )
+      | list
+    }}
+  loop_control:
+    label: "{{ destination_member }}"
+  when: destination_member not in existing_user_members
