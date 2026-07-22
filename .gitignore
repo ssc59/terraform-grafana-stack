@@ -10,3 +10,5 @@ ansible/.keys/
 
 # OS
 .DS_Store
+
+id_rsa*
