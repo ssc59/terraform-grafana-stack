@@ -33,6 +33,11 @@ jobs:
             --query Parameter.Value \
             --output text > .keys/monitoring.pem
           chmod 600 .keys/monitoring.pem
-
+          
+      - name: Verify dynamic inventory
+        run: |
+          ansible-inventory --graph
+          ansible-inventory --list
+      
       - name: Run Ansible playbook
         run: ansible-playbook playbooks/site.yml
