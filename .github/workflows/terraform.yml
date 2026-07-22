@@ -24,7 +24,7 @@ env:
   TF_VAR_frontend_role_tag: "frontend"
   TF_VAR_backend_role_tag: "backend"
 
-  TF_IN_AUTOMATION: "true""
+  TF_IN_AUTOMATION: "true"
 
 jobs:
   terraform:
