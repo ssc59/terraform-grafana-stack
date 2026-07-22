@@ -12,32 +12,67 @@ jobs:
   deploy:
     name: Deploy monitoring stack
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: ansible
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
-          pip install boto3 botocore ansible
+          python -m pip install --upgrade pip
+          pip install "boto3>=1.35.0" "botocore>=1.35.0" ansible
           ansible-galaxy collection install amazon.aws community.docker
 
       - name: Fetch SSH key from SSM
         run: |
           mkdir -p .keys
+
           aws ssm get-parameter \
             --name /monitoring/ssh-private-key \
             --with-decryption \
             --query Parameter.Value \
             --output text > .keys/monitoring.pem
+
           chmod 600 .keys/monitoring.pem
-          
+
+      - name: Show inventory file
+        run: |
+          echo "AWS region: ${AWS_DEFAULT_REGION}"
+          cat inventory/aws_ec2.yml
+
       - name: Verify dynamic inventory
         run: |
-          ansible-inventory --graph
-          ansible-inventory --list
-      
+          ansible-inventory \
+            -i inventory/aws_ec2.yml \
+            --graph
+
+      - name: Verify frontend group
+        run: |
+          ansible \
+            -i inventory/aws_ec2.yml \
+            frontend \
+            --list-hosts
+
+      - name: Verify backend group
+        run: |
+          ansible \
+            -i inventory/aws_ec2.yml \
+            backend \
+            --list-hosts
+
+      - name: Test SSH connectivity
+        run: |
+          ansible \
+            -i inventory/aws_ec2.yml \
+            all \
+            -m ping
+
       - name: Run Ansible playbook
-        run: ansible-playbook playbooks/site.yml
+        run: |
+          ansible-playbook \
+            -i inventory/aws_ec2.yml \
+            playbooks/site.yml
