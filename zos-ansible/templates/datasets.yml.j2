@@ -1,0 +1,6 @@
+seed_libraries:
+{% for folder in seed_library_folders.files | sort(attribute='path') %}
+  - dataset: TEAM02.SEED.{{ folder.path | basename | upper }}
+    source: {{ folder.path | basename | upper }}
+
+{% endfor %}

@@ -1,0 +1,230 @@
+---
+- name: Create Team 2 RACF users
+  hosts: zoslab
+  gather_facts: false
+
+  environment: "{{ environment_vars }}"
+
+  vars_files:
+    - ../vars/users.yml
+
+  tasks:
+    - name: Validate RACF variables
+      ansible.builtin.assert:
+        that:
+          - team_group is defined
+          - team_gid is defined
+          - racf_users is defined
+          - racf_users | length > 0
+        fail_msg: "Team group or RACF user variables are missing."
+
+    - name: Check whether the RACF group exists
+      ibm.ibm_zos_core.zos_tso_command:
+        commands:
+          - "LISTGRP {{ team_group }} OMVS"
+        max_rc: 8
+      register: group_check
+      failed_when: false
+      changed_when: false
+
+    - name: Create the RACF group when missing
+      ibm.ibm_zos_core.zos_tso_command:
+        commands:
+          - "ADDGROUP {{ team_group }} OWNER(IBMUSER)"
+        max_rc: 0
+      when:
+        - group_check.output | length > 0
+        - group_check.output[0].rc | int != 0
+
+    - name: Refresh RACF group information
+      ibm.ibm_zos_core.zos_tso_command:
+        commands:
+          - "LISTGRP {{ team_group }} OMVS"
+        max_rc: 0
+      register: refreshed_group
+      changed_when: false
+
+    - name: Store RACF group output
+      ansible.builtin.set_fact:
+        group_profile_text: >-
+          {{
+            refreshed_group.output[0].content
+            | default([])
+            | join(' ')
+          }}
+      changed_when: false
+
+    - name: Assign OMVS GID when missing or incorrect
+      ibm.ibm_zos_core.zos_tso_command:
+        commands:
+          - "ALTGROUP {{ team_group }} OMVS(GID({{ team_gid }}))"
+        max_rc: 0
+      when:
+        - >-
+          (
+            group_profile_text
+            | regex_search(
+                'GID=\s*0*' ~ (team_gid | string)
+              )
+          ) is none
+
+    - name: Check whether each RACF user exists
+      ibm.ibm_zos_core.zos_tso_command:
+        commands:
+          - "LISTUSER {{ item.userid }}"
+        max_rc: 8
+      loop: "{{ racf_users }}"
+      loop_control:
+        label: "{{ item.userid }}"
+      register: user_checks
+      failed_when: false
+      changed_when: false
+
+    - name: Create missing RACF users
+      ibm.ibm_zos_core.zos_tso_command:
+        commands:
+          - >-
+            ADDUSER {{ item.item.userid }}
+            NAME('{{ item.item.name }}')
+            OWNER({{ team_group }})
+            DFLTGRP({{ item.item.default_group }})
+            PASSWORD({{ item.item.password }})
+            TSO(
+            ACCTNUM({{ item.item.account }})
+            PROC({{ item.item.procedure }})
+            )
+        max_rc: 0
+      loop: "{{ user_checks.results }}"
+      loop_control:
+        label: "{{ item.item.userid }}"
+      when:
+        - item.output is defined
+        - item.output | length > 0
+        - item.output[0].rc | int != 0
+      no_log: true
+
+    - name: Refresh RACF user profiles
+      ibm.ibm_zos_core.zos_tso_command:
+        commands:
+          - "LISTUSER {{ item.userid }} OMVS"
+        max_rc: 0
+      loop: "{{ racf_users }}"
+      loop_control:
+        label: "{{ item.userid }}"
+      register: current_user_profiles
+      changed_when: false
+
+    - name: Connect users to the team group when missing
+      ibm.ibm_zos_core.zos_tso_command:
+        commands:
+          - >-
+            CONNECT {{ item.item.userid }}
+            GROUP({{ team_group }})
+            AUTHORITY(USE)
+        max_rc: 0
+      loop: "{{ current_user_profiles.results }}"
+      loop_control:
+        label: "{{ item.item.userid }}"
+      vars:
+        profile_text: >-
+          {{
+            item.output[0].content
+            | default([])
+            | join(' ')
+          }}
+      when:
+        - "'GROUP=' ~ team_group not in profile_text"
+
+    - name: Set the default group when incorrect
+      ibm.ibm_zos_core.zos_tso_command:
+        commands:
+          - >-
+            ALTUSER {{ item.item.userid }}
+            DFLTGRP({{ team_group }})
+        max_rc: 0
+      loop: "{{ current_user_profiles.results }}"
+      loop_control:
+        label: "{{ item.item.userid }}"
+      vars:
+        profile_text: >-
+          {{
+            item.output[0].content
+            | default([])
+            | join(' ')
+          }}
+      when:
+        - "'DEFAULT-GROUP=' ~ team_group not in profile_text"
+
+    - name: Assign AUTOUID only when UID is missing
+      ibm.ibm_zos_core.zos_tso_command:
+        commands:
+          - >-
+            ALTUSER {{ item.item.userid }}
+            OMVS(AUTOUID
+            HOME('/u/{{ item.item.userid | lower }}')
+            PROGRAM('/bin/sh'))
+        max_rc: 0
+      loop: "{{ current_user_profiles.results }}"
+      loop_control:
+        label: "{{ item.item.userid }}"
+      vars:
+        profile_text: >-
+          {{
+            item.output[0].content
+            | default([])
+            | join(' ')
+          }}
+      when:
+        - "'UID=' not in profile_text"
+
+    - name: Correct OMVS home and program when needed
+      ibm.ibm_zos_core.zos_tso_command:
+        commands:
+          - >-
+            ALTUSER {{ item.item.userid }}
+            OMVS(
+            HOME('/u/{{ item.item.userid | lower }}')
+            PROGRAM('/bin/sh')
+            )
+        max_rc: 0
+      loop: "{{ current_user_profiles.results }}"
+      loop_control:
+        label: "{{ item.item.userid }}"
+      vars:
+        profile_text: >-
+          {{
+            item.output[0].content
+            | default([])
+            | join(' ')
+          }}
+        expected_home: >-
+          HOME= /u/{{ item.item.userid | lower }}
+      when:
+        - "'UID=' in profile_text"
+        - >-
+          expected_home not in profile_text
+          or 'PROGRAM= /bin/sh' not in profile_text
+
+    - name: Verify RACF user OMVS segments
+      ibm.ibm_zos_core.zos_tso_command:
+        commands:
+          - "LISTUSER {{ item.userid }} OMVS"
+        max_rc: 0
+      loop: "{{ racf_users }}"
+      loop_control:
+        label: "{{ item.userid }}"
+      register: omvs_verification
+      changed_when: false
+      tags:
+        - verify
+
+    - name: Display OMVS verification
+      ansible.builtin.debug:
+        msg:
+          userid: "{{ item.item.userid }}"
+          output: "{{ item.output[0].content | default([]) }}"
+      loop: "{{ omvs_verification.results }}"
+      loop_control:
+        label: "{{ item.item.userid }}"
+      tags:
+        - verify

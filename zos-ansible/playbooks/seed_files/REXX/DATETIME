@@ -1,0 +1,4 @@
+/* REXX */                                                              
+say "Hi," userid()||"!"                                                 
+say "It's" TIME() "on" DATE()                                           
+exit 0                                                                  

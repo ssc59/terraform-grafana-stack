@@ -1,0 +1,15 @@
+HELLO    CSECT
+HELLO    AMODE 31
+HELLO    RMODE ANY
+         STM   R14,R12,12(R13)
+         LR    R12,R15
+         USING *,R12
+         WTO 'HELLO, WORLD'
+         SR    R15,R15
+         LM    R14,R12,12(R13)
+         BR    R14
+R12      EQU   12
+R13      EQU   13
+R14      EQU   14
+R15      EQU   15
+         END   HELLO

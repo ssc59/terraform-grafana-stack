@@ -1,0 +1,35 @@
+---
+- name: Copy Seed libraries from team data set to user
+  hosts: zoslab
+  gather_facts: false
+
+  environment: "{{ environment_vars }}"
+
+  collections:
+    - ibm.ibm_zos_core
+
+  vars_files:
+    - ../vars/users.yml
+    - ../vars/datasets.yml
+
+  tasks:
+    - name: Create user libraries
+      zos_data_set:
+        name: "{{ item.0.userid }}.DEV.{{ item.1.source }}"
+        state: present
+        type: pdse
+        record_format: fb
+        record_length: 80
+        block_size: 3120
+        space_primary: 5
+        space_secondary: 2
+        space_type: trk
+      loop: "{{ racf_users | product(seed_libraries) | list }}"   
+
+    - name: Copy team seed libraries into user libraries
+      zos_copy:
+        src: "{{ item.1.dataset }}"
+        dest: "{{ item.0.userid }}.DEV.{{ item.1.source }}"
+        remote_src: true
+        force: true
+      loop: "{{ racf_users | product(seed_libraries) | list }}" 

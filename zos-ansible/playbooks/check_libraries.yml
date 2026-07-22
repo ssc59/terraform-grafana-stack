@@ -1,0 +1,152 @@
+---
+- name: Check TEAM02 datasets
+  hosts: zoslab
+  gather_facts: false
+
+  environment: "{{ environment_vars }}"
+
+  collections:
+    - ibm.ibm_zos_core
+
+  tasks:
+# Query z/OS for existing datasets/members: TEAM02.SEED.*
+    - name: Find TEAM02 seed datasets
+      ibm.ibm_zos_core.zos_find:
+        patterns:
+          - "TEAM02.SEED.*"
+      register: dataset_results
+
+    - name: Show matching datasets
+      ansible.builtin.debug:
+        var: dataset_results.data_sets
+
+    - name: Find members in TEAM02 seed libraries
+      ibm.ibm_zos_core.zos_find:
+        pds_patterns: >-
+          {{
+            dataset_results.data_sets
+            | map(attribute='name')
+            | list
+          }}
+        patterns:
+          - ".*"
+      register: member_results
+
+    - name: Show complete member results
+      ansible.builtin.debug:
+        var: member_results
+# Check playbooks/seed_files for updated list of required files: Update vars/datasets.yml
+    - name: Find seed library folders
+      ansible.builtin.find:
+        paths: "{{ playbook_dir }}/seed_files"
+        file_type: directory
+        recurse: false
+      delegate_to: localhost
+      register: seed_library_folders
+
+    - name: Generate datasets.yml from seed folders
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/datasets.yml.j2"
+        dest: "{{ playbook_dir }}/../vars/datasets.yml"
+        mode: "0644"
+      delegate_to: localhost
+
+    - name: Load updated datasets.yml
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/datasets.yml"
+    
+    - name: Build desired and existing dataset lists
+      ansible.builtin.set_fact:
+        desired_datasets: >-
+          {{
+            seed_libraries
+            | map(attribute='dataset')
+            | list
+          }}
+        existing_datasets: >-
+          {{
+            dataset_results.data_sets
+            | map(attribute='name')
+            | list
+          }}
+
+    - name: Find datasets missing from z/OS
+      ansible.builtin.set_fact:
+        missing_datasets: >-
+          {{
+            desired_datasets
+            | difference(existing_datasets)
+          }}
+
+    - name: Show missing datasets
+      ansible.builtin.debug:
+        var: missing_datasets
+
+    - name: Find local seed files
+      ansible.builtin.find:
+        paths: "{{ playbook_dir }}/seed_files"
+        file_type: file
+        recurse: true
+        hidden: true
+      delegate_to: localhost
+      register: seed_files
+      
+    - name: Build desired member list
+      ansible.builtin.set_fact:
+        desired_members: >-
+          {{
+            desired_members | default([]) +
+            [
+              'TEAM02.SEED.'
+              ~ (item.path | dirname | basename | upper)
+              ~ '('
+              ~ (
+                  item.path
+                  | basename
+                  | regex_replace('\.[^.]+$', '')
+                  | upper
+                )
+              ~ ')'
+            ]
+          }}
+      loop: "{{ seed_files.files }}"
+
+    - name: Initialize existing member list
+      ansible.builtin.set_fact:
+        existing_members: []
+
+    - name: Build existing member list
+      ansible.builtin.set_fact:
+        existing_members: >-
+          {{
+            existing_members
+            +
+            [
+              item.0.name ~ '(' ~ item.1 ~ ')'
+            ]
+          }}
+      loop: "{{ query('subelements', member_results.data_sets, 'members') }}"
+      loop_control:
+        label: "{{ item.0.name }}({{ item.1 }})"
+
+    - name: Find members missing from z/OS
+      ansible.builtin.set_fact:
+        missing_members: >-
+          {{
+            desired_members
+            | difference(existing_members)
+          }}
+
+    - name: Show missing members
+      ansible.builtin.debug:
+        var: missing_members
+
+    - name: Run seed tasks for missing resources
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../tasks/seed_libraries.yml"
+      vars:
+        libraries_to_create: "{{ missing_datasets }}"
+        members_to_copy: "{{ missing_members }}"
+      when:
+        - missing_datasets | length > 0
+          or missing_members | length > 0

@@ -1,0 +1,43 @@
+//CRTUSERS JOB 1,'CREATE RACF USERS',
+//             CLASS=A,
+//             MSGCLASS=A,
+//             MSGLEVEL=(1,1),
+//             NOTIFY=&SYSUID
+//*
+{#
+//RACF     EXEC PGM=IKJEFT01
+//SYSTSPRT DD SYSOUT=*
+//SYSPRINT DD SYSOUT=*
+//SYSTSIN  DD *
+{% for user in racf_users %}
+ADDUSER ({{ user.userid }}) -
+ NAME('{{ user.name }}') -
+ DFLTGRP({{ user.default_group }}) -
+ PASSWORD({{ user.password }}) -
+ TSO(ACCTNUM({{ user.account }}) PROC({{ user.procedure }}))
+{% endfor %}
+/*
+#}
+//*
+//* DELETE, RECREATE, AND SEED EACH USER LIBRARY
+//*
+{#
+{% for user in racf_users %}
+//DL{{ "%05d"|format(loop.index) }} EXEC PGM=IEFBR14
+//OLDLIB   DD DSN={{ user.userid }}.DEV.SRCLIB,
+//             DISP=(MOD,DELETE,DELETE)
+//*
+//CP{{ "%05d"|format(loop.index) }} EXEC PGM=IEBCOPY
+//SYSPRINT DD SYSOUT=*
+//SYSUT1   DD UNIT=SYSDA,SPACE=(TRK,(1,1))
+//INDD     DD DSN=TEAM02.SEED.SRCLIB,DISP=SHR
+//OUTDD    DD DSN={{ user.userid }}.DEV.SRCLIB,
+//             DISP=(NEW,CATLG,DELETE),
+//             SPACE=(TRK,(5,2,10)),
+//             DSNTYPE=LIBRARY,
+//             DCB=(RECFM=FB,LRECL=80,BLKSIZE=27920)
+//SYSIN    DD *
+ COPY INDD=INDD,OUTDD=OUTDD
+/*
+{% endfor %}
+#}

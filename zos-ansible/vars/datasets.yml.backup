@@ -1,0 +1,15 @@
+seed_libraries:
+  - dataset: TEAM02.SEED.ASM
+    source: ASM
+
+  - dataset: TEAM02.SEED.COBOL
+    source: COBOL
+
+  - dataset: TEAM02.SEED.JCL
+    source: JCL
+
+  - dataset: TEAM02.SEED.PROCLIB
+    source: PROCLIB
+
+  - dataset: TEAM02.SEED.REXX
+    source: REXX

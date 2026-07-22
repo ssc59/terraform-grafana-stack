@@ -1,0 +1,45 @@
+---
+- name: Create missing seed libraries
+  ibm.ibm_zos_core.zos_data_set:
+    name: "{{ item }}"
+    state: present
+    type: pdse
+    record_format: fb
+    record_length: 80
+    block_size: 3120
+    space_primary: 5
+    space_secondary: 2
+    space_type: trk
+  loop: "{{ libraries_to_create }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Find local seed files
+  ansible.builtin.find:
+    paths: "{{ playbook_dir }}/seed_files"
+    file_type: file
+    hidden: true
+    recurse: true
+  delegate_to: localhost
+  register: seed_files_to_copy
+
+- name: Copy missing seed members
+  ibm.ibm_zos_core.zos_copy:
+    src: "{{ item.path }}"
+    dest: "{{ destination_member }}"
+    remote_src: false
+    force: true
+    force_lock: true
+    encoding:
+      from: UTF-8
+      to: IBM-1047
+  vars:
+    destination_member: >-
+      TEAM02.SEED.{{ item.path | dirname | basename | upper
+      }}({{ item.path | basename
+      | regex_replace('\.[^.]+$', '')
+      | upper }})
+  loop: "{{ seed_files_to_copy.files }}"
+  loop_control:
+    label: "{{ destination_member }}"
+  when: destination_member in members_to_copy
