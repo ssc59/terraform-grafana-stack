@@ -17,8 +17,14 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+
   TF_VAR_aws_region: ${{ secrets.AWS_DEFAULT_REGION }}
-  TF_IN_AUTOMATION: "true"
+  TF_VAR_instance_type: "t3.micro"
+  TF_VAR_project_tag: "terraform-grafana-stack"
+  TF_VAR_frontend_role_tag: "frontend"
+  TF_VAR_backend_role_tag: "backend"
+
+  TF_IN_AUTOMATION: "true""
 
 jobs:
   terraform:
