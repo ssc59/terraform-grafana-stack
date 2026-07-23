@@ -29,10 +29,3 @@ racf_users:
   account: ACCT001
   procedure: DB13PROC
   uid: 8044
-- userid: USERex2
-  name: Test User 8
-  default_group: '{{ team_group }}'
-  password: TEMP123
-  account: ACCT001
-  procedure: DB13PROC
-  uid: 8045

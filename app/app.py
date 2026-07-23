@@ -60,7 +60,7 @@ def create_user():
     with open("zos-ansible/vars/users.yml", "w") as f:
         yaml.dump(data, f, sort_keys=False)
 
-    result = subprocess.run(
+    result1 = subprocess.run(
         [
             "ansible-playbook",
             "-i",
@@ -68,7 +68,10 @@ def create_user():
             "--private-key",
             "/home/ansible/.ssh/id_rsa",
             "zos-ansible/playbooks/create_users.yml",
-        ],
+        ]
+    )
+
+    result2 = subprocess.run(
         [
             "ansible-playbook",
             "-i",
@@ -76,7 +79,10 @@ def create_user():
             "--private-key",
             "/home/ansible/.ssh/id_rsa",
             "zos-ansible/playbooks/sync_seed_libraries.yml",
-        ],
+        ]
+    )
+
+    result3 = subprocess.run(
         [
             "ansible-playbook",
             "-i",
@@ -92,8 +98,12 @@ def create_user():
     <h2>Provision Result</h2>
 
     <pre>
-    {result.stdout}
-    {result.stderr}
+    {result1.stdout}
+    {result1.stderr}
+    {result2.stdout}
+    {result2.stderr}
+    {result3.stdout}
+    {result3.stderr}
     </pre>
     """
 
