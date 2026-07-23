@@ -19,3 +19,6 @@ id_rsa*
 *.tfplan
 crash.log
 crash.*.log
+
+# Python virtual environment
+.venv
