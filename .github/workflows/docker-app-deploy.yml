@@ -174,14 +174,14 @@ jobs:
       - name: Verify dynamic inventory
         run: |
           ansible-inventory \
-            -i inventory/aws_ec2.yml \
+            -i ansible/inventory/aws_ec2.yml \
             --graph
 
       - name: Get frontend public IP
         run: |
           FRONTEND_IP="$(
             ansible-inventory \
-              -i inventory/aws_ec2.yml \
+              -i ansible/inventory/aws_ec2.yml \
               --list |
             python -c '
           import json
@@ -229,7 +229,7 @@ jobs:
       - name: Test frontend connectivity with Ansible
         run: |
           ansible \
-            -i inventory/aws_ec2.yml \
+            -i ansible/inventory/aws_ec2.yml \
             frontend \
             -m ping \
             -e "ansible_user=ec2-user" \
@@ -239,7 +239,7 @@ jobs:
       - name: Deploy Docker application
         run: |
           ansible-playbook \
-            -i inventory/aws_ec2.yml \
+            -i ansible/inventory/aws_ec2.yml \
             playbooks/deploy_docker_app.yml \
             -e "ansible_user=ec2-user" \
             -e "ansible_private_key_file=$(pwd)/.keys/monitoring.pem" \
