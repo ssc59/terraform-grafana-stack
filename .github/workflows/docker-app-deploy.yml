@@ -211,7 +211,7 @@ jobs:
             -i ansible/inventory/aws_ec2.yml \
             --graph
 
-      - name: Get frontend public IP
+      - name: Get frontend host
         shell: bash
         run: |
           set -euo pipefail
@@ -219,13 +219,12 @@ jobs:
           ansible-inventory \
             -i ansible/inventory/aws_ec2.yml \
             --list \
-            2>/dev/null \
             > /tmp/aws-inventory.json
 
-          FRONTEND_IP="$(
+          FRONTEND_HOST="$(
             python - <<'PY'
-          import ipaddress
           import json
+          import re
 
           with open("/tmp/aws-inventory.json", encoding="utf-8") as file:
               inventory = json.load(file)
@@ -237,59 +236,36 @@ jobs:
                   "No frontend hosts were found in the dynamic inventory."
               )
 
-          frontend_host = frontend_hosts[0]
+          frontend_host = str(frontend_hosts[0]).strip()
 
-          hostvars = (
-              inventory
-              .get("_meta", {})
-              .get("hostvars", {})
-              .get(frontend_host, {})
-          )
+          if not frontend_host:
+              raise SystemExit("The frontend hostname is empty.")
 
-          candidates = [
-              hostvars.get("public_ip_address"),
-              hostvars.get("public_ip"),
-              hostvars.get("ansible_host"),
-          ]
-
-          frontend_ip = None
-
-          for candidate in candidates:
-              if not candidate:
-                  continue
-
-              value = str(candidate).strip()
-
-              try:
-                  ipaddress.ip_address(value)
-                  frontend_ip = value
-                  break
-              except ValueError:
-                  continue
-
-          if frontend_ip is None:
+          if not re.fullmatch(r"[A-Za-z0-9.-]+", frontend_host):
               raise SystemExit(
-                  "A valid frontend public IP address could not be found."
+                  f"The frontend hostname contains invalid characters: "
+                  f"{frontend_host!r}"
               )
 
-          print(frontend_ip, end="")
+          print(frontend_host, end="")
           PY
           )"
 
-          if [[ ! "${FRONTEND_IP}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          if [[ -z "${FRONTEND_HOST}" ]]
           then
-            echo "Invalid frontend IP: [${FRONTEND_IP}]"
+            echo "Frontend hostname is empty."
             exit 1
           fi
 
-          echo "Frontend public IP: [${FRONTEND_IP}]"
-          printf 'FRONTEND_IP=%s\n' "${FRONTEND_IP}" >> "$GITHUB_ENV"
+          echo "Frontend host: [${FRONTEND_HOST}]"
+          printf 'FRONTEND_HOST=%s\n' "${FRONTEND_HOST}" >> "$GITHUB_ENV"
 
       - name: Test SSH directly
+        shell: bash
         run: |
           set -euo pipefail
 
-          echo "Connecting to ec2-user@${FRONTEND_IP}"
+          echo "Connecting to ec2-user@${FRONTEND_HOST}"
 
           ssh \
             -o StrictHostKeyChecking=no \
@@ -297,7 +273,7 @@ jobs:
             -o IdentitiesOnly=yes \
             -o ConnectTimeout=30 \
             -i "${GITHUB_WORKSPACE}/.keys/monitoring.pem" \
-            "ec2-user@${FRONTEND_IP}" \
+            "ec2-user@${FRONTEND_HOST}" \
             "echo Direct SSH connection succeeded"
 
       - name: Test frontend connectivity with Ansible
@@ -323,15 +299,18 @@ jobs:
             -e "docker_image=${DOCKER_IMAGE}"
 
       - name: Verify application health
+        shell: bash
         run: |
-          echo "Testing http://${FRONTEND_IP}:5000/health"
+          set -euo pipefail
+
+          echo "Testing http://${FRONTEND_HOST}:5000/health"
 
           curl \
             --fail \
             --retry 12 \
             --retry-delay 5 \
             --retry-all-errors \
-            "http://${FRONTEND_IP}:5000/health"
+            "http://${FRONTEND_HOST}:5000/health"
 
       - name: Remove downloaded SSH key
         if: always()
