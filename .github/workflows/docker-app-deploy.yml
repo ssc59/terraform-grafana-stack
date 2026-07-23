@@ -356,14 +356,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "Testing http://${FRONTEND_HOST}:5000/health"
+          echo "Testing application from inside the frontend EC2 instance"
 
-          curl \
-            --fail \
-            --retry 12 \
-            --retry-delay 5 \
-            --retry-all-errors \
-            "http://${FRONTEND_HOST}:5000/health"
+          ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -o IdentitiesOnly=yes \
+            -o ConnectTimeout=30 \
+            -i "${GITHUB_WORKSPACE}/.keys/monitoring.pem" \
+            "ec2-user@${FRONTEND_HOST}" \
+            "curl --fail --retry 6 --retry-delay 5 --connect-timeout 5 --max-time 10 http://localhost:5000/health"
 
       - name: Remove downloaded SSH key
         if: always()
