@@ -67,7 +67,23 @@ def create_user():
             "zos-ansible/inventory/hosts.yml",
             "--private-key",
             "/home/ansible/.ssh/id_rsa",
-            "zos-ansible/playbooks/provision_user.yml",
+            "zos-ansible/playbooks/create_users.yml",
+        ],
+        [
+            "ansible-playbook",
+            "-i",
+            "zos-ansible/inventory/hosts.yml",
+            "--private-key",
+            "/home/ansible/.ssh/id_rsa",
+            "zos-ansible/playbooks/sync_seed_libraries.yml",
+        ],
+        [
+            "ansible-playbook",
+            "-i",
+            "zos-ansible/inventory/hosts.yml",
+            "--private-key",
+            "/home/ansible/.ssh/id_rsa",
+            "zos-ansible/playbooks/sync_user_libraries.yml",
         ]
     )
 
