@@ -17,3 +17,8 @@ output "ssm_key_parameter" {
   description = "SSM Parameter Store path for the SSH private key"
   value       = aws_ssm_parameter.ssh_private_key.name
 }
+
+output "docker_app_ecr_repository_url" {
+  description = "ECR repository URL for the Docker application"
+  value       = aws_ecr_repository.docker_app.repository_url
+}
