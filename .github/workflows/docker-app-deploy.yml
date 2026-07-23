@@ -277,23 +277,29 @@ jobs:
             "echo Direct SSH connection succeeded"
 
       - name: Test frontend connectivity with Ansible
+        shell: bash
         run: |
+          set -euo pipefail
+
           ansible \
-            -i ansible/inventory/aws_ec2.yml \
             frontend \
-            -m ping \
-            -e "ansible_user=ec2-user" \
-            -e "ansible_private_key_file=${GITHUB_WORKSPACE}/.keys/monitoring.pem" \
-            -e "ansible_ssh_common_args=-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes"
+            -i ansible/inventory/aws_ec2.yml \
+            -m ansible.builtin.ping \
+            -u ec2-user \
+            --private-key "${GITHUB_WORKSPACE}/.keys/monitoring.pem" \
+            --ssh-common-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes"
 
       - name: Deploy Docker application
+        shell: bash
         run: |
+          set -euo pipefail
+
           ansible-playbook \
             -i ansible/inventory/aws_ec2.yml \
             ansible/playbooks/deploy_docker_app.yml \
-            -e "ansible_user=ec2-user" \
-            -e "ansible_private_key_file=${GITHUB_WORKSPACE}/.keys/monitoring.pem" \
-            -e "ansible_ssh_common_args=-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes" \
+            -u ec2-user \
+            --private-key "${GITHUB_WORKSPACE}/.keys/monitoring.pem" \
+            --ssh-common-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes" \
             -e "ecr_registry=${ECR_REGISTRY}" \
             -e "ecr_password=${ECR_PASSWORD}" \
             -e "docker_image=${DOCKER_IMAGE}"
