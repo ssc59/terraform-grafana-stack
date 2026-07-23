@@ -1,5 +1,12 @@
 ---
-- import_playbook: install_docker.yml
-- import_playbook: backend.yml
-- import_playbook: frontend.yml
-- import_playbook: endpoints.yml
+- name: Install Docker
+  ansible.builtin.import_playbook: install_docker.yml
+
+- name: Configure backend
+  ansible.builtin.import_playbook: backend.yml
+
+- name: Configure frontend
+  ansible.builtin.import_playbook: frontend.yml
+
+- name: Verify endpoints
+  ansible.builtin.import_playbook: endpoints.yml

@@ -1,4 +1,9 @@
 ---
-- import_playbook: create_users.yml
-- import_playbook: check_libraries.yml
-- import_playbook: copy_seeds.yml
+- name: Synchronize seed libraries
+  ansible.builtin.import_playbook: sync_seed_libraries.yml
+
+- name: Synchronize user libraries
+  ansible.builtin.import_playbook: sync_user_libraries.yml
+
+- name: Create users
+  ansible.builtin.import_playbook: create_users.yml

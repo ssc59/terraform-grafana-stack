@@ -1,0 +1,4 @@
+---
+collections:
+  - name: community.docker
+  - name: ibm.ibm_zos_core
