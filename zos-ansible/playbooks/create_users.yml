@@ -5,9 +5,6 @@
 
   environment: "{{ environment_vars }}"
 
-  vars_files:
-    - ../vars/users.yml
-
   tasks:
     - name: Validate RACF variables
       ansible.builtin.assert:

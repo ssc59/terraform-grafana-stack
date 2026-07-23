@@ -32,7 +32,7 @@ def set_user(user_id, name, account, procedure, emp_num, zos_uid):
             (user_id, name, account, procedure, emp_num, zos_uid)
         )
 
-def get_user():
+def get_user(emp_num):
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         return conn.execute(
