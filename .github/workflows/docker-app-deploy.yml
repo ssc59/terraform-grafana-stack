@@ -135,6 +135,14 @@ jobs:
 
           chmod 600 .keys/monitoring.pem
 
+      - name: Verify deployment credentials
+        run: |
+          echo "AWS account:"
+          aws sts get-caller-identity --query Account --output text
+
+          echo "SSH key fingerprint:"
+          ssh-keygen -y -f .keys/monitoring.pem | ssh-keygen -lf - 
+
       - name: Get temporary ECR password
         run: |
           ECR_PASSWORD="$(aws ecr get-login-password \
@@ -154,13 +162,17 @@ jobs:
           ansible \
             -i inventory/aws_ec2.yml \
             frontend \
-            -m ping
+            -m ping \
+            -u ec2-user \
+            --private-key .keys/monitoring.pem
 
       - name: Deploy Docker application
         run: |
           ansible-playbook \
             -i inventory/aws_ec2.yml \
             playbooks/deploy_docker_app.yml \
+            -u ec2-user \
+            --private-key .keys/monitoring.pem \
             --extra-vars "ecr_registry=${ECR_REGISTRY}" \
             --extra-vars "docker_image=${DOCKER_IMAGE}"
 
