@@ -20,5 +20,7 @@ id_rsa*
 crash.log
 crash.*.log
 
-# Python virtual environment
+# Python & DB
 .venv
+app.db
+__pycache__/
