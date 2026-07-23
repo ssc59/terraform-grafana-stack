@@ -1,0 +1,195 @@
+name: Docker App Build and Deploy
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+    paths:
+      - "docker-app/**"
+      - "ansible/playbooks/deploy_docker_app.yml"
+      - ".github/workflows/docker-app-deploy.yml"
+
+permissions:
+  contents: read
+
+env:
+  AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+  ECR_REPOSITORY: terraform-docker-app
+
+jobs:
+  build-and-push:
+    name: Build and push image
+    runs-on: ubuntu-latest
+
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      registry: ${{ steps.login-ecr.outputs.registry }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set Docker image name
+        id: image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "Building ${IMAGE}"
+
+      - name: Build Docker image
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build \
+            --tag "${IMAGE}" \
+            --tag "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest" \
+            docker-app
+
+      - name: Test Docker image
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          docker run --detach \
+            --name terraform-docker-app-test \
+            --publish 5000:5000 \
+            "${IMAGE}"
+
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:5000/health; then
+              echo
+              echo "Container health check passed."
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          docker logs terraform-docker-app-test
+          exit 1
+
+      - name: Push Docker image to ECR
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker push "${IMAGE}"
+          docker push "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+
+  deploy:
+    name: Deploy image with Ansible
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    defaults:
+      run:
+        working-directory: ansible
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      ECR_REGISTRY: ${{ needs.build-and-push.outputs.registry }}
+      DOCKER_IMAGE: ${{ needs.build-and-push.outputs.image }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Ansible dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            "boto3>=1.35.0" \
+            "botocore>=1.35.0" \
+            ansible
+
+          ansible-galaxy collection install \
+            amazon.aws \
+            community.docker
+
+      - name: Fetch SSH key from SSM
+        run: |
+          mkdir -p .keys
+
+          aws ssm get-parameter \
+            --name /monitoring/ssh-private-key \
+            --with-decryption \
+            --query Parameter.Value \
+            --output text > .keys/monitoring.pem
+
+          chmod 600 .keys/monitoring.pem
+
+      - name: Get temporary ECR password
+        run: |
+          ECR_PASSWORD="$(aws ecr get-login-password \
+            --region "${AWS_DEFAULT_REGION}")"
+
+          echo "::add-mask::${ECR_PASSWORD}"
+          echo "ECR_PASSWORD=${ECR_PASSWORD}" >> "$GITHUB_ENV"
+
+      - name: Verify dynamic inventory
+        run: |
+          ansible-inventory \
+            -i inventory/aws_ec2.yml \
+            --graph
+
+      - name: Test frontend connectivity
+        run: |
+          ansible \
+            -i inventory/aws_ec2.yml \
+            frontend \
+            -m ping
+
+      - name: Deploy Docker application
+        run: |
+          ansible-playbook \
+            -i inventory/aws_ec2.yml \
+            playbooks/deploy_docker_app.yml \
+            --extra-vars "ecr_registry=${ECR_REGISTRY}" \
+            --extra-vars "docker_image=${DOCKER_IMAGE}"
+
+      - name: Verify application through public frontend IP
+        run: |
+          FRONTEND_IP="$(
+            ansible-inventory \
+              -i inventory/aws_ec2.yml \
+              --list |
+            python -c '
+          import json
+          import sys
+
+          inventory = json.load(sys.stdin)
+          host = inventory["frontend"]["hosts"][0]
+          variables = inventory["_meta"]["hostvars"][host]
+
+          print(
+              variables.get("ansible_host")
+              or variables.get("public_ip_address")
+              or host
+          )
+          '
+          )"
+
+          echo "Testing http://${FRONTEND_IP}:5000/health"
+
+          curl \
+            --fail \
+            --retry 10 \
+            --retry-delay 3 \
+            "http://${FRONTEND_IP}:5000/health"
