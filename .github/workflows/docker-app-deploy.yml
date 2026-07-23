@@ -8,8 +8,9 @@ on:
       - main
     paths:
       - "docker-app/**"
-      - "playbooks/deploy_docker_app.yml"
-      - "inventory/**"
+      - "ansible/playbooks/deploy_docker_app.yml"
+      - "ansible/inventory/**"
+      - "terraform/**"
       - ".github/workflows/docker-app-deploy.yml"
 
 permissions:
@@ -17,13 +18,12 @@ permissions:
 
 env:
   AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-
-  # Change this only if your ECR repository has a different name.
+  AWS_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
   ECR_REPOSITORY: docker-app
 
 jobs:
   build-and-push:
-    name: Build and push image
+    name: Build and Push Docker Image
     runs-on: ubuntu-latest
 
     outputs:
@@ -41,9 +41,35 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
-      - name: Verify AWS account
+      - name: Verify AWS account and region
         run: |
-          aws sts get-caller-identity
+          echo "AWS account:"
+          aws sts get-caller-identity --query Account --output text
+
+          echo "AWS region:"
+          echo "${AWS_DEFAULT_REGION}"
+
+      - name: Ensure ECR repository exists
+        run: |
+          if aws ecr describe-repositories \
+            --repository-names "${ECR_REPOSITORY}" \
+            --region "${AWS_DEFAULT_REGION}" >/dev/null 2>&1
+          then
+            echo "ECR repository ${ECR_REPOSITORY} already exists."
+          else
+            echo "Creating ECR repository ${ECR_REPOSITORY}."
+
+            aws ecr create-repository \
+              --repository-name "${ECR_REPOSITORY}" \
+              --region "${AWS_DEFAULT_REGION}" \
+              --image-scanning-configuration scanOnPush=true
+          fi
+
+          aws ecr describe-repositories \
+            --repository-names "${ECR_REPOSITORY}" \
+            --region "${AWS_DEFAULT_REGION}" \
+            --query "repositories[0].repositoryUri" \
+            --output text
 
       - name: Log in to Amazon ECR
         id: login-ecr
@@ -54,17 +80,19 @@ jobs:
         run: |
           ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
           DOCKER_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
+          LATEST_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
 
           echo "ECR registry: ${ECR_REGISTRY}"
           echo "Docker image: ${DOCKER_IMAGE}"
 
           echo "docker_image=${DOCKER_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "latest_image=${LATEST_IMAGE}" >> "$GITHUB_OUTPUT"
 
       - name: Build Docker image
         run: |
           docker build \
             --tag "${{ steps.image-info.outputs.docker_image }}" \
-            --tag "${{ steps.login-ecr.outputs.registry }}/${ECR_REPOSITORY}:latest" \
+            --tag "${{ steps.image-info.outputs.latest_image }}" \
             docker-app
 
       - name: Test Docker image
@@ -75,12 +103,11 @@ jobs:
             --publish 5000:5000 \
             "${{ steps.image-info.outputs.docker_image }}"
 
-          sleep 5
-
           curl \
             --fail \
-            --retry 5 \
+            --retry 10 \
             --retry-delay 3 \
+            --retry-all-errors \
             http://localhost:5000/health
 
       - name: Stop test container
@@ -91,12 +118,10 @@ jobs:
       - name: Push Docker image
         run: |
           docker push "${{ steps.image-info.outputs.docker_image }}"
-
-          docker push \
-            "${{ steps.login-ecr.outputs.registry }}/${ECR_REPOSITORY}:latest"
+          docker push "${{ steps.image-info.outputs.latest_image }}"
 
   deploy-with-ansible:
-    name: Deploy image with Ansible
+    name: Deploy Docker Image with Ansible
     runs-on: ubuntu-latest
     needs:
       - build-and-push
@@ -133,6 +158,13 @@ jobs:
             amazon.aws \
             community.docker
 
+      - name: Verify required repository files
+        run: |
+          test -f ansible/inventory/aws_ec2.yml
+          test -f ansible/playbooks/deploy_docker_app.yml
+
+          echo "Required Ansible files exist."
+
       - name: Fetch SSH key from SSM
         run: |
           mkdir -p .keys
@@ -147,6 +179,8 @@ jobs:
 
           chmod 600 .keys/monitoring.pem
 
+          test -s .keys/monitoring.pem
+
       - name: Verify deployment credentials
         run: |
           echo "AWS account used by GitHub Actions:"
@@ -155,7 +189,7 @@ jobs:
             --query "Account" \
             --output text
 
-          echo "SSH key fingerprint:"
+          echo "SSH private key fingerprint:"
 
           ssh-keygen -y \
             -f .keys/monitoring.pem |
@@ -178,16 +212,23 @@ jobs:
             --graph
 
       - name: Get frontend public IP
+        shell: bash
         run: |
-          FRONTEND_IP="$(
-            ansible-inventory \
-              -i ansible/inventory/aws_ec2.yml \
-              --list |
-            python -c '
-          import json
-          import sys
+          set -euo pipefail
 
-          inventory = json.load(sys.stdin)
+          ansible-inventory \
+            -i ansible/inventory/aws_ec2.yml \
+            --list \
+            2>/dev/null \
+            > /tmp/aws-inventory.json
+
+          FRONTEND_IP="$(
+            python - <<'PY'
+          import ipaddress
+          import json
+
+          with open("/tmp/aws-inventory.json", encoding="utf-8") as file:
+              inventory = json.load(file)
 
           frontend_hosts = inventory.get("frontend", {}).get("hosts", [])
 
@@ -196,33 +237,66 @@ jobs:
                   "No frontend hosts were found in the dynamic inventory."
               )
 
-          host = frontend_hosts[0]
-          variables = inventory.get("_meta", {}).get(
-              "hostvars",
-              {}
-          ).get(host, {})
+          frontend_host = frontend_hosts[0]
 
-          frontend_ip = (
-              variables.get("ansible_host")
-              or variables.get("public_ip_address")
-              or variables.get("public_ip")
-              or host
+          hostvars = (
+              inventory
+              .get("_meta", {})
+              .get("hostvars", {})
+              .get(frontend_host, {})
           )
 
-          print(frontend_ip)
-          '
+          candidates = [
+              hostvars.get("public_ip_address"),
+              hostvars.get("public_ip"),
+              hostvars.get("ansible_host"),
+          ]
+
+          frontend_ip = None
+
+          for candidate in candidates:
+              if not candidate:
+                  continue
+
+              value = str(candidate).strip()
+
+              try:
+                  ipaddress.ip_address(value)
+                  frontend_ip = value
+                  break
+              except ValueError:
+                  continue
+
+          if frontend_ip is None:
+              raise SystemExit(
+                  "A valid frontend public IP address could not be found."
+              )
+
+          print(frontend_ip, end="")
+          PY
           )"
 
-          echo "Frontend public IP: ${FRONTEND_IP}"
-          echo "FRONTEND_IP=${FRONTEND_IP}" >> "$GITHUB_ENV"
+          if [[ ! "${FRONTEND_IP}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          then
+            echo "Invalid frontend IP: [${FRONTEND_IP}]"
+            exit 1
+          fi
+
+          echo "Frontend public IP: [${FRONTEND_IP}]"
+          printf 'FRONTEND_IP=%s\n' "${FRONTEND_IP}" >> "$GITHUB_ENV"
 
       - name: Test SSH directly
         run: |
+          set -euo pipefail
+
+          echo "Connecting to ec2-user@${FRONTEND_IP}"
+
           ssh \
             -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
             -o IdentitiesOnly=yes \
             -o ConnectTimeout=30 \
-            -i "$(pwd)/.keys/monitoring.pem" \
+            -i "${GITHUB_WORKSPACE}/.keys/monitoring.pem" \
             "ec2-user@${FRONTEND_IP}" \
             "echo Direct SSH connection succeeded"
 
@@ -233,17 +307,17 @@ jobs:
             frontend \
             -m ping \
             -e "ansible_user=ec2-user" \
-            -e "ansible_private_key_file=$(pwd)/.keys/monitoring.pem" \
-            -e "ansible_ssh_common_args=-o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
+            -e "ansible_private_key_file=${GITHUB_WORKSPACE}/.keys/monitoring.pem" \
+            -e "ansible_ssh_common_args=-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes"
 
       - name: Deploy Docker application
         run: |
           ansible-playbook \
             -i ansible/inventory/aws_ec2.yml \
-            playbooks/deploy_docker_app.yml \
+            ansible/playbooks/deploy_docker_app.yml \
             -e "ansible_user=ec2-user" \
-            -e "ansible_private_key_file=$(pwd)/.keys/monitoring.pem" \
-            -e "ansible_ssh_common_args=-o StrictHostKeyChecking=no -o IdentitiesOnly=yes" \
+            -e "ansible_private_key_file=${GITHUB_WORKSPACE}/.keys/monitoring.pem" \
+            -e "ansible_ssh_common_args=-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes" \
             -e "ecr_registry=${ECR_REGISTRY}" \
             -e "ecr_password=${ECR_PASSWORD}" \
             -e "docker_image=${DOCKER_IMAGE}"
@@ -258,3 +332,8 @@ jobs:
             --retry-delay 5 \
             --retry-all-errors \
             "http://${FRONTEND_IP}:5000/health"
+
+      - name: Remove downloaded SSH key
+        if: always()
+        run: |
+          rm -f .keys/monitoring.pem
