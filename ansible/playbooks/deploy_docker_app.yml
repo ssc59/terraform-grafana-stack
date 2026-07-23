@@ -1,0 +1,71 @@
+---
+- name: Deploy Flask application from Amazon ECR
+  hosts: frontend
+  become: true
+  gather_facts: true
+
+  vars:
+    docker_app_name: terraform-docker-app
+    docker_app_port: 5000
+
+  tasks:
+    - name: Confirm required deployment variables are present
+      ansible.builtin.assert:
+        that:
+          - ecr_registry is defined
+          - ecr_registry | length > 0
+          - docker_image is defined
+          - docker_image | length > 0
+          - lookup('env', 'ECR_PASSWORD') | length > 0
+        fail_msg: Required ECR deployment information is missing.
+
+    - name: Log in to Amazon ECR
+      community.docker.docker_login:
+        registry_url: "{{ ecr_registry }}"
+        username: AWS
+        password: "{{ lookup('env', 'ECR_PASSWORD') }}"
+        reauthorize: true
+      no_log: true
+
+    - name: Pull Docker application image
+      community.docker.docker_image:
+        name: "{{ docker_image }}"
+        source: pull
+        force_source: true
+
+    - name: Run Docker application container
+      community.docker.docker_container:
+        name: "{{ docker_app_name }}"
+        image: "{{ docker_image }}"
+        state: started
+        restart_policy: unless-stopped
+        recreate: true
+        pull: never
+        published_ports:
+          - "{{ docker_app_port }}:5000"
+
+    - name: Wait for application port
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ docker_app_port }}"
+        delay: 2
+        timeout: 60
+
+    - name: Verify application health
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ docker_app_port }}/health"
+        method: GET
+        return_content: true
+        status_code: 200
+      register: docker_app_health
+      retries: 10
+      delay: 3
+      until:
+        - docker_app_health.status == 200
+        - docker_app_health.json.status == "healthy"
+
+    - name: Display deployment result
+      ansible.builtin.debug:
+        msg: >-
+          {{ docker_app_name }} is running from {{ docker_image }}
+          on port {{ docker_app_port }}.
