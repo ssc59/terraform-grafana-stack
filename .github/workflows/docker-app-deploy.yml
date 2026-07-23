@@ -77,16 +77,20 @@ jobs:
 
       - name: Set Docker image information
         id: image-info
+        shell: bash
         run: |
+          set -euo pipefail
+
           ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
           DOCKER_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
           LATEST_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
 
-          echo "ECR registry: ${ECR_REGISTRY}"
-          echo "Docker image: ${DOCKER_IMAGE}"
-
           echo "docker_image=${DOCKER_IMAGE}" >> "$GITHUB_OUTPUT"
           echo "latest_image=${LATEST_IMAGE}" >> "$GITHUB_OUTPUT"
+
+          echo "ECR registry: ${ECR_REGISTRY}"
+          echo "Docker image: ${DOCKER_IMAGE}"
+          echo "Latest image: ${LATEST_IMAGE}"
 
       - name: Build Docker image
         run: |
@@ -131,8 +135,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       AWS_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-      ECR_REGISTRY: ${{ needs.build-and-push.outputs.ecr_registry }}
-      DOCKER_IMAGE: ${{ needs.build-and-push.outputs.docker_image }}
+      ECR_REPOSITORY: docker-app
 
     steps:
       - name: Check out repository
@@ -195,15 +198,55 @@ jobs:
             -f .keys/monitoring.pem |
           ssh-keygen -lf -
 
-      - name: Get temporary ECR password
+      - name: Set ECR deployment information
+        shell: bash
         run: |
+          set -euo pipefail
+
+          AWS_ACCOUNT_ID="$(
+            aws sts get-caller-identity \
+              --query Account \
+              --output text
+          )"
+
+          ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+          DOCKER_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
+
           ECR_PASSWORD="$(
             aws ecr get-login-password \
               --region "${AWS_DEFAULT_REGION}"
           )"
 
+          if [[ -z "${AWS_ACCOUNT_ID}" ]]; then
+            echo "AWS account ID is empty."
+            exit 1
+          fi
+
+          if [[ -z "${ECR_REGISTRY}" ]]; then
+            echo "ECR_REGISTRY is empty."
+            exit 1
+          fi
+
+          if [[ -z "${DOCKER_IMAGE}" ]]; then
+            echo "DOCKER_IMAGE is empty."
+            exit 1
+          fi
+
+          if [[ -z "${ECR_PASSWORD}" ]]; then
+            echo "ECR_PASSWORD is empty."
+            exit 1
+          fi
+
           echo "::add-mask::${ECR_PASSWORD}"
-          echo "ECR_PASSWORD=${ECR_PASSWORD}" >> "$GITHUB_ENV"
+
+          {
+            echo "ECR_REGISTRY=${ECR_REGISTRY}"
+            echo "DOCKER_IMAGE=${DOCKER_IMAGE}"
+            echo "ECR_PASSWORD=${ECR_PASSWORD}"
+          } >> "$GITHUB_ENV"
+
+          echo "ECR registry: ${ECR_REGISTRY}"
+          echo "Docker image: ${DOCKER_IMAGE}"
 
       - name: Verify dynamic inventory
         run: |
@@ -294,6 +337,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          echo "Deploying image: ${DOCKER_IMAGE}"
+          echo "Using registry: ${ECR_REGISTRY}"
+
           ansible-playbook \
             -i ansible/inventory/aws_ec2.yml \
             ansible/playbooks/deploy_docker_app.yml \
@@ -301,6 +347,7 @@ jobs:
             --private-key "${GITHUB_WORKSPACE}/.keys/monitoring.pem" \
             --ssh-common-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes" \
             -e "ecr_registry=${ECR_REGISTRY}" \
+            -e "ecr_username=AWS" \
             -e "ecr_password=${ECR_PASSWORD}" \
             -e "docker_image=${DOCKER_IMAGE}"
 
