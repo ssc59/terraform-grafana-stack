@@ -1,5 +1,5 @@
 import db
-
+'''
 db.set_user(
     "USER04",
     "Test User 4",
@@ -8,7 +8,7 @@ db.set_user(
     60001,
     8041
 )
-
+'''
 db.set_user(
     "USER05",
     "Test User 5",
@@ -17,7 +17,7 @@ db.set_user(
     60002,
     8042
 )
-
+'''
 db.set_user(
     "USER06",
     "Test User 6",
@@ -26,3 +26,4 @@ db.set_user(
     60003,
     8043
 )
+'''
