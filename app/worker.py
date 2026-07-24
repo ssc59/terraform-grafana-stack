@@ -48,7 +48,7 @@ def process_employee(employee_number):
 
     ANSIBLE_DIR = (
     Path(__file__).resolve().parent.parent
-    / "zos-ansible/playbooks"
+    / "zos-ansible"
     )
 
     #Run: sync_user_libraries.yml
@@ -57,8 +57,8 @@ def process_employee(employee_number):
             [
                 "ansible-playbook",
                 "-i",
-                "../inventory/hosts.yml",
-                "sync_user_libraries.yml",
+                "inventory/hosts.yml",
+                "playbooks/sync_user_libraries.yml",
                 "--extra-vars",
                 json.dumps(ansible_vars),
             ],
@@ -74,8 +74,8 @@ def process_employee(employee_number):
             [
                 "ansible-playbook",
                 "-i",
-                "../inventory/hosts.yml",
-                "create_users.yml",
+                "inventory/hosts.yml",
+                "playbooks/create_users.yml",
                 "--extra-vars",
                 json.dumps(ansible_vars),
             ],

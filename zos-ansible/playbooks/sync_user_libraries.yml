@@ -9,10 +9,19 @@
     - ibm.ibm_zos_core
 
   vars_files:
-    - ../vars/users.yml
     - ../vars/datasets.yml
 
   tasks:
+    - name: Validate worker-provided user data
+      ansible.builtin.assert:
+        that:
+          - racf_users is defined
+          - racf_users | length > 0
+          - team_group is defined
+          - team_gid is defined
+        fail_msg: >-
+          The worker did not provide racf_users, team_group, and team_gid.
+
     - name: Build list of user development libraries
       ansible.builtin.set_fact:
         user_libraries: >-
