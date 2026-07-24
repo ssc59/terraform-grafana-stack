@@ -43,11 +43,18 @@ jobs:
       - name: Install Ansible
         run: |
           python -m pip install --upgrade pip
-          pip install ansible
+          pip install "ansible-core==2.15.13"
 
       - name: Install IBM zOS collection
         run: |
-          ansible-galaxy collection install ibm.ibm_zos_core
+          ansible-galaxy collection install \
+            ibm.ibm_zos_core:==1.9.3 \
+            --force
+
+      - name: Show installed versions
+        run: |
+          ansible --version
+          ansible-galaxy collection list ibm.ibm_zos_core
 
       - name: Create SSH private key
         env:
@@ -83,12 +90,14 @@ jobs:
             -i inventory/hosts.yml \
             --graph
 
-      - name: Test zOS connection
+      - name: Test zOS SSH connection
         run: |
           ansible zoslab \
             -i inventory/hosts.yml \
-            -m ibm.ibm_zos_core.zos_ping \
-            --scp-extra-args="-O"
+            -m ansible.builtin.raw \
+            -a "echo ZOS_CONNECTION_OK" \
+            --scp-extra-args="-O" \
+            -vv
 
       - name: Syntax-check seed playbook
         run: |
@@ -104,6 +113,14 @@ jobs:
             playbooks/sync_seed_libraries.yml \
             --limit zoslab \
             --scp-extra-args="-O"
+
+      - name: Syntax-check user library playbook
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.sync_user_libraries }}
+        run: |
+          ansible-playbook \
+            -i inventory/hosts.yml \
+            playbooks/sync_user_libraries.yml \
+            --syntax-check
 
       - name: Sync user development libraries
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.sync_user_libraries }}
