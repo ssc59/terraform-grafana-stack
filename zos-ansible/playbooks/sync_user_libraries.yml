@@ -44,16 +44,29 @@
           - ".*"
       register: seed_member_results
 
-    - name: Find existing members in user libraries
+    - name: Find existing members in each user library
       ibm.ibm_zos_core.zos_find:
-        pds_patterns: "{{ user_libraries }}"
+        pds_patterns:
+          - "{{ item }}"
         patterns:
           - ".*"
-      register: user_member_results
+      loop: "{{ user_libraries }}"
+      loop_control:
+        label: "{{ item }}"
+      register: user_member_searches
+      failed_when: false
 
-    - name: Print all currently available variables
-      ansible.builtin.debug:
-        var: vars
+    - name: Combine user library search results
+      ansible.builtin.set_fact:
+        user_member_results:
+          data_sets: >-
+            {{
+              user_member_searches.results
+              | selectattr('data_sets', 'defined')
+              | map(attribute='data_sets')
+              | flatten
+              | list
+            }}
 
     - name: Copy missing seed members
       ansible.builtin.include_tasks:
