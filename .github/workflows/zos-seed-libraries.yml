@@ -1,0 +1,120 @@
+name: zOS Seed Libraries
+
+on:
+  workflow_dispatch:
+    inputs:
+      sync_user_libraries:
+        description: "Also copy seed members into user DEV libraries"
+        required: true
+        default: false
+        type: boolean
+
+  push:
+    branches:
+      - main
+    paths:
+      - "zos-ansible/playbooks/seed_files/**"
+      - "zos-ansible/playbooks/sync_seed_libraries.yml"
+      - "zos-ansible/playbooks/sync_user_libraries.yml"
+      - "zos-ansible/tasks/**"
+      - "zos-ansible/templates/**"
+      - "zos-ansible/vars/**"
+      - "zos-ansible/inventory/**"
+      - ".github/workflows/zos-seed-libraries.yml"
+
+jobs:
+  sync-seed-libraries:
+    name: Sync TEAM02 seed libraries
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: zos-ansible
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ansible
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible
+
+      - name: Install IBM zOS collection
+        run: |
+          ansible-galaxy collection install ibm.ibm_zos_core
+
+      - name: Create SSH private key
+        env:
+          ZOS_SSH_PRIVATE_KEY: ${{ secrets.ZOS_SSH_PRIVATE_KEY }}
+        run: |
+          if [ -z "$ZOS_SSH_PRIVATE_KEY" ]; then
+            echo "ERROR: ZOS_SSH_PRIVATE_KEY secret is missing."
+            exit 1
+          fi
+
+          printf '%s\n' "$ZOS_SSH_PRIVATE_KEY" > id_rsa
+          chmod 600 id_rsa
+
+      - name: Verify seed library files
+        run: |
+          echo "Seed library folders and files:"
+
+          if [ ! -d "playbooks/seed_files" ]; then
+            echo "ERROR: playbooks/seed_files does not exist."
+            exit 1
+          fi
+
+          find playbooks/seed_files -type f -print
+
+          if [ -z "$(find playbooks/seed_files -type f -print -quit)" ]; then
+            echo "ERROR: No seed files were found."
+            exit 1
+          fi
+
+      - name: Check Ansible inventory
+        run: |
+          ansible-inventory \
+            -i inventory/hosts.yml \
+            --graph
+
+      - name: Test zOS connection
+        run: |
+          ansible zoslab \
+            -i inventory/hosts.yml \
+            -m ibm.ibm_zos_core.zos_ping \
+            --scp-extra-args="-O"
+
+      - name: Syntax-check seed playbook
+        run: |
+          ansible-playbook \
+            -i inventory/hosts.yml \
+            playbooks/sync_seed_libraries.yml \
+            --syntax-check
+
+      - name: Sync TEAM02 seed libraries
+        run: |
+          ansible-playbook \
+            -i inventory/hosts.yml \
+            playbooks/sync_seed_libraries.yml \
+            --limit zoslab \
+            --scp-extra-args="-O"
+
+      - name: Sync user development libraries
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.sync_user_libraries }}
+        run: |
+          ansible-playbook \
+            -i inventory/hosts.yml \
+            playbooks/sync_user_libraries.yml \
+            --limit zoslab \
+            --scp-extra-args="-O"
+
+      - name: Remove SSH private key
+        if: always()
+        run: |
+          rm -f id_rsa
