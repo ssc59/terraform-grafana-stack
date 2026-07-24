@@ -29,6 +29,7 @@ def process_employee(employee_number):
         check=True,
     )
 
+    
     ansible_vars = {
             "team_group": "TEAM02",
             "team_gid": 8022,
@@ -50,15 +51,36 @@ def process_employee(employee_number):
     / "zos-ansible/playbooks"
     )
 
-    subprocess.run(
-        [
-            "ansible-playbook",
-            "-i",
-            "../inventory/hosts.yml",
-            "create_users.yml",
-            "--extra-vars",
-            json.dumps(ansible_vars),
-        ],
-        cwd=ANSIBLE_DIR,
-        check=True,
-    )
+    #Run: sync_user_libraries.yml
+    try:
+        subprocess.run(
+            [
+                "ansible-playbook",
+                "-i",
+                "../inventory/hosts.yml",
+                "sync_user_libraries.yml",
+                "--extra-vars",
+                json.dumps(ansible_vars),
+            ],
+            cwd=ANSIBLE_DIR,
+            check=True,
+        )
+    except:
+        print("sync_user_libraries.yml failed")
+
+    #Run: create_users.yml
+    try:
+        subprocess.run(
+            [
+                "ansible-playbook",
+                "-i",
+                "../inventory/hosts.yml",
+                "create_users.yml",
+                "--extra-vars",
+                json.dumps(ansible_vars),
+            ],
+            cwd=ANSIBLE_DIR,
+            check=True,
+        )
+    except:
+        print("create_users.yml failed")
