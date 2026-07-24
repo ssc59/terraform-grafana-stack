@@ -37,7 +37,7 @@
       ansible.builtin.debug:
         var: user_libraries
 
-    - name: Find members in team seed libraries
+    - name: Find members in TEAM02.SEED.*
       ibm.ibm_zos_core.zos_find:
         pds_patterns: "{{ seed_libraries | map(attribute='dataset') | list }}"
         patterns:
