@@ -40,4 +40,24 @@ def get_user(emp_num):
             (emp_num,)
         ).fetchone()
 
+def get_all_users():
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+
+        users = conn.execute(
+            "SELECT * FROM employees"
+        ).fetchall()
+
+        return [dict(user) for user in users]
+
+def delete_user(employee_number: str) -> bool:
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.execute(
+            "DELETE FROM employees WHERE emp_num = ?",
+            (employee_number,),
+        )
+        conn.commit()
+
+        return cursor.rowcount > 0
+
 init_db()

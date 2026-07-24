@@ -13,19 +13,30 @@ def process_employee(employee_number):
         raise ValueError(f"Employee {employee_number} does not exist")
 
     TERRAFORM_DIR = (
-    Path(__file__).resolve().parent.parent.parent
+    Path(__file__).resolve().parent.parent
     / "terraform-team02"
     )
 
     print(f"Running Terraform from: {TERRAFORM_DIR}")
     
+    all_employees = db.get_all_users()
+
+    team_users = [
+        user["user_id"]
+        for user in all_employees
+    ]
+
+    print(f"Terraform users: {team_users}")
+
     subprocess.run(
         [
             "terraform",
             "apply",
             "-auto-approve",
+            "-var",
+            f"team_users={json.dumps(team_users)}",
         ],
-        cwd="../terraform-team02",
+        cwd=TERRAFORM_DIR,
         check=True,
     )
 

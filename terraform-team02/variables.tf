@@ -42,10 +42,4 @@ variable "public_key_path" {
 variable "team_users" {
   description = "RACF users receiving one EC2 instance each"
   type        = set(string)
-
-  default = [
-    "USER04",
-    "USER05",
-    "USER06"
-  ]
 }
