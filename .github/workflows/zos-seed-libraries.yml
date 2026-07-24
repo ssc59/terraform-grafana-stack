@@ -120,6 +120,7 @@ jobs:
           ansible-playbook \
             -i inventory/hosts.yml \
             playbooks/sync_user_libraries.yml \
+            --extra-vars "@vars/users.yml" \
             --syntax-check
 
       - name: Sync user development libraries
@@ -128,6 +129,7 @@ jobs:
           ansible-playbook \
             -i inventory/hosts.yml \
             playbooks/sync_user_libraries.yml \
+            --extra-vars "@vars/users.yml" \
             --limit zoslab \
             --scp-extra-args="-O"
 
