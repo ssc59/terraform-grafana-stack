@@ -1,6 +1,7 @@
+from pathlib import Path
 import sqlite3
 
-DB_PATH = "app.db"
+DB_PATH = Path(__file__).resolve().parent / "app.db"
 
 def init_db():
     with sqlite3.connect(DB_PATH) as conn:
