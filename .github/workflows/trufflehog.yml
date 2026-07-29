@@ -9,22 +9,24 @@ permissions:
   contents: read
 
 jobs:
-  update-manifest:
+  trufflehog:
+    name: truffel hog test
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: truffel hog test
+      - name: Run TruffleHog
         uses: trufflesecurity/trufflehog@v3.95.9
         with:
           extra_args: --results=verified,unknown
 
   merge:
     name: Merge into main
-    needs: test
+    needs: truffel hog test
     runs-on: ubuntu-latest
 
     # Only merge PRs created from branches in this repository.
