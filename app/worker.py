@@ -62,7 +62,7 @@ def process_employee(employee_number):
                     "default_group": "TEAM02",
                     "password": employee["user_id"],
                     "account": employee["account"],
-                    "procedure": employee["procedure"],
+                    "procedure": employee["proc"],
                     "uid": employee["zos_uid"],
                 }
             ],
