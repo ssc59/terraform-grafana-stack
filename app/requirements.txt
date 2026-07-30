@@ -1,5 +1,4 @@
 flask
 pyyaml
-sqlite3
 sqlalchemy 
 pymysql
