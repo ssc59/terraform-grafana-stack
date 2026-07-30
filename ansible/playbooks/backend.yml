@@ -6,6 +6,7 @@
   vars:
     config_dir: /opt/monitoring
     pushgateway_ip: "{{ hostvars[groups['frontend'][0]]['private_ip_address'] }}"
+    loki_url: "http://{{ ansible_default_ipv4.address }}:3100"
 
   tasks:
     - name: Create config directories
