@@ -105,6 +105,7 @@ jobs:
             --detach \
             --name docker-app-test \
             --publish 5000:5000 \
+            --env DATABASE_URL="${{ secrets.DATABASE_URL }}" \
             "${{ steps.image-info.outputs.docker_image }}"
 
           sleep 3
