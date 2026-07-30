@@ -73,6 +73,23 @@ def process_employee(employee_number):
     / "zos-ansible"
     )
 
+    #Run: report.yml
+    try:
+        subprocess.run(
+            [
+                "ansible-playbook",
+                "-i",
+                "inventory",
+                "report.yml",
+                "--extra-vars",
+                json.dumps(ansible_vars),
+            ],
+            cwd=ANSIBLE_DIR,
+            check=True,
+        )
+    except:
+        print("report.yml failed")
+
     #Run: sync_user_libraries.yml
     try:
         subprocess.run(

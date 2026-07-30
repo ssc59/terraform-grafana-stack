@@ -16,3 +16,8 @@ environment_vars:
   LANG: "C"
   PYTHONSTDINENCODING: "cp1047"
   PYTHONIOENCODING: "utf-8"
+
+cmci_host: 173.45.66.189
+cmci_port: 1490
+scheme: http
+context: ''
