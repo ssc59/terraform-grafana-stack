@@ -107,12 +107,21 @@ jobs:
             --publish 5000:5000 \
             "${{ steps.image-info.outputs.docker_image }}"
 
-          curl \
+          sleep 3
+
+          docker ps -a
+
+          if ! curl \
             --fail \
             --retry 10 \
             --retry-delay 3 \
             --retry-all-errors \
             http://localhost:5000/health
+          then
+            echo "Container logs:"
+            docker logs docker-app-test
+            exit 1
+          fi
 
       - name: Stop test container
         if: always()
