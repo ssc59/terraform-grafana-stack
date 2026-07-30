@@ -35,6 +35,21 @@
     scheme: http
     context: ''
 
+    pushgateway_url: >-
+      {{
+        lookup('ansible.builtin.env', 'PUSHGATEWAY_URL')
+        | default('http://50.18.75.128:9091', true)
+      }}
+
+    prometheus_metrics_file: "{{ playbook_dir }}/cics_metrics.prom"
+
+    attributes:
+      - eyu_cicsname
+      - release
+      - jobid
+      - totltasks
+
+
   tasks:
     ############################################################################
     # Install module dependencies

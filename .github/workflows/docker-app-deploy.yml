@@ -7,7 +7,7 @@ on:
     branches:
       - main
     paths:
-      - "docker-app/**"
+      - "app/**"
       - "ansible/playbooks/deploy_docker_app.yml"
       - "ansible/inventory/**"
       - "terraform/**"
@@ -97,7 +97,7 @@ jobs:
           docker build \
             --tag "${{ steps.image-info.outputs.docker_image }}" \
             --tag "${{ steps.image-info.outputs.latest_image }}" \
-            docker-app
+            app
 
       - name: Test Docker image
         run: |
