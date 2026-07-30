@@ -2,9 +2,20 @@
 from pathlib import Path
 import subprocess
 import json
+from threading import Thread
 
 import db
 
+def run_employee_worker(employee_number):
+    thread = Thread(
+        target=process_employee,
+        args=(employee_number,),
+        daemon=False,
+        name=f"employee-{employee_number}",
+    )
+
+    thread.start()
+    return thread
 
 def process_employee(employee_number):
     employee = db.get_user(employee_number)

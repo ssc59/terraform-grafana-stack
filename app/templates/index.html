@@ -2,36 +2,60 @@
 
 <html>
 
-    <head>
-        <title>z/OS Developer Portal</title>
-    </head>
+<head>
 
-    <body>
+    <title>TEAM02 Provisioning Portal</title>
 
-        <h1>Create z/OS Developer</h1>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
-        <form action="/create-user" method="POST">
+</head>
 
-        <label>User ID</label>
-        <br>
+<body>
 
-        <input name="username">
+<div class="card">
 
-        <br><br>
+<h1>TEAM02 User Provisioning</h1>
 
-        <label>Name</label>
-        <br>
+<p>Create a new RACF user and launch the provisioning workflow.</p>
 
-        <input name="fullname">
+<form action="/create-user" method="post">
 
-        <br><br>
+<label>User ID</label>
+<input
+    type="text"
+    name="user_id"
+    required
+>
 
-        <button type="submit">
-            Create User
-        </button>
+<label>Full Name</label>
+<input
+    type="text"
+    name="name"
+    required
+>
 
-        </form>
+<label>Account</label>
+<input
+    type="text"
+    name="account"
+    value="ACCT001"
+    required
+>
 
-    </body>
+<label>Procedure</label>
+<input
+    type="text"
+    name="procedure"
+    value="DB13PROC"
+    required
+>
+
+<button>Create User</button>
+
+</form>
+
+</div>
+
+</body>
 
 </html>

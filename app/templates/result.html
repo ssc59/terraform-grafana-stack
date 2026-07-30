@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<title>Provisioning</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body>
+
+<div class="card">
+
+{% if success %}
+
+<h1>Provisioning Started</h1>
+
+<p>
+The new employee has been added to the database and the provisioning workflow
+has been started in the background.
+</p>
+
+<table>
+
+<tr>
+<td>User ID</td>
+<td>{{ user_id }}</td>
+</tr>
+
+<tr>
+<td>Name</td>
+<td>{{ name }}</td>
+</tr>
+
+<tr>
+<td>Employee Number</td>
+<td>{{ employee_number }}</td>
+</tr>
+
+<tr>
+<td>z/OS UID</td>
+<td>{{ zos_uid }}</td>
+</tr>
+
+<tr>
+<td>Status</td>
+<td>Running...</td>
+</tr>
+
+</table>
+
+{% else %}
+
+<h1>ERROR: Provisioning Failed</h1>
+
+<p>{{ message }}</p>
+
+{% endif %}
+
+<a href="/">Create Another User</a>
+
+</div>
+
+</body>
+
+</html>

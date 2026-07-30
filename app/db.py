@@ -60,5 +60,22 @@ def delete_user(employee_number: str) -> bool:
         conn.commit()
 
         return cursor.rowcount > 0
+    
+def get_next_employee_number():
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute(
+            "SELECT MAX(emp_num) FROM employees"
+        ).fetchone()
+
+    return (row[0] or 60000) + 1
+
+
+def get_next_zos_uid():
+    with sqlite3.connect(DB_PATH) as conn:
+        row = conn.execute(
+            "SELECT MAX(zos_uid) FROM employees"
+        ).fetchone()
+
+    return (row[0] or 8040) + 1
 
 init_db()
