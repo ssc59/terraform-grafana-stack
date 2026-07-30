@@ -2,3 +2,4 @@ flask
 pyyaml
 sqlalchemy 
 pymysql
+gunicorn
