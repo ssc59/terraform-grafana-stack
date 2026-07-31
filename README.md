@@ -1,7 +1,5 @@
 # Monitoring Stack — Terraform + Ansible
 
-Grafana, Prometheus, Pushgateway, Loki, and Promtail deployed across two EC2 instances in AWS. Infrastructure provisioned by Terraform, services configured by Ansible running Docker containers.
-
 ## Architecture
 
 ```
