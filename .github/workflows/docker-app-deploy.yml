@@ -119,6 +119,7 @@ jobs:
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       AWS_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       ECR_REPOSITORY: docker-app
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
     steps:
       - name: Check out repository
@@ -333,7 +334,8 @@ jobs:
             -e "ecr_registry=${ECR_REGISTRY}" \
             -e "ecr_username=AWS" \
             -e "ecr_password=${ECR_PASSWORD}" \
-            -e "docker_image=${DOCKER_IMAGE}"
+            -e "docker_image=${DOCKER_IMAGE}" \
+            -e "database_url=${DATABASE_URL}"
 
       - name: Verify application health
         shell: bash

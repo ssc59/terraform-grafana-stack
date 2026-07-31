@@ -19,6 +19,8 @@
           - docker_image | length > 0
           - ecr_password is defined
           - ecr_password | length > 0
+          - database_url is defined
+          - database_url | length > 0
         fail_msg: Required ECR deployment information is missing.
 
     - name: Ensure Docker is installed
@@ -88,6 +90,8 @@
             pull: never
             published_ports:
               - "{{ docker_app_port }}:5000"
+            env:
+              DATABASE_URL: "{{ database_url }}"
 
     - name: Wait for application port
       ansible.builtin.wait_for:
