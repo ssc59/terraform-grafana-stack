@@ -5,7 +5,7 @@ regions:
   - us-west-1
 
 filters:
-  tag:Project: TEAM02
+  tag:Project: monitoring
   instance-state-name: running
 
 keyed_groups:
