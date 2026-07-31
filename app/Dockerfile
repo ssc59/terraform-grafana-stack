@@ -2,13 +2,11 @@ FROM python:3.12-slim
 
 WORKDIR /workspace
 
+COPY . /workspace
+
+RUN pip install --no-cache-dir -r /workspace/app/requirements.txt
+
 WORKDIR /workspace/app
-
-COPY . /workspace/app
-
-COPY requirements.txt .
-
-RUN pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 5000
 
