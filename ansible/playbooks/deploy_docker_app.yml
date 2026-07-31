@@ -7,6 +7,7 @@
   vars:
     docker_app_name: terraform-docker-app
     docker_app_port: 5000
+    docker_sdk_venv: /opt/docker-sdk-venv
 
   tasks:
     - name: Confirm required deployment variables are present
@@ -25,16 +26,27 @@
         name: docker
         state: present
 
+    - name: Ensure Docker service is enabled and running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
     - name: Ensure Python pip is installed
       ansible.builtin.package:
         name: python3-pip
         state: present
 
-    - name: Ensure Python Docker SDK is installed
+    - name: Create Docker SDK virtual environment
+      ansible.builtin.command:
+        cmd: "python3 -m venv {{ docker_sdk_venv }}"
+        creates: "{{ docker_sdk_venv }}/bin/python"
+
+    - name: Install Docker SDK in virtual environment
       ansible.builtin.pip:
         name: docker
         state: present
-        executable: pip3
+        executable: "{{ docker_sdk_venv }}/bin/pip"
 
     - name: Verify Docker socket exists
       ansible.builtin.stat:
@@ -47,30 +59,35 @@
           - docker_socket.stat.exists
         fail_msg: Docker is installed, but /var/run/docker.sock is unavailable.
 
-    - name: Log in to Amazon ECR
-      community.docker.docker_login:
-        registry_url: "{{ ecr_registry }}"
-        username: AWS
-        password: "{{ ecr_password }}"
-        reauthorize: true
-      no_log: true
+    - name: Deploy container using Docker SDK virtual environment
+      vars:
+        ansible_python_interpreter: "{{ docker_sdk_venv }}/bin/python"
 
-    - name: Pull Docker application image
-      community.docker.docker_image:
-        name: "{{ docker_image }}"
-        source: pull
-        force_source: true
+      block:
+        - name: Log in to Amazon ECR
+          community.docker.docker_login:
+            registry_url: "{{ ecr_registry }}"
+            username: AWS
+            password: "{{ ecr_password }}"
+            reauthorize: true
+          no_log: true
 
-    - name: Run Docker application container
-      community.docker.docker_container:
-        name: "{{ docker_app_name }}"
-        image: "{{ docker_image }}"
-        state: started
-        restart_policy: unless-stopped
-        recreate: true
-        pull: never
-        published_ports:
-          - "{{ docker_app_port }}:5000"
+        - name: Pull Docker application image
+          community.docker.docker_image:
+            name: "{{ docker_image }}"
+            source: pull
+            force_source: true
+
+        - name: Run Docker application container
+          community.docker.docker_container:
+            name: "{{ docker_app_name }}"
+            image: "{{ docker_image }}"
+            state: started
+            restart_policy: unless-stopped
+            recreate: true
+            pull: never
+            published_ports:
+              - "{{ docker_app_port }}:5000"
 
     - name: Wait for application port
       ansible.builtin.wait_for:

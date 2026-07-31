@@ -104,6 +104,11 @@ jobs:
             --tag "${{ steps.image-info.outputs.latest_image }}" \
             app
 
+      - name: Push Docker images to ECR
+        run: |
+          docker push "${{ steps.image-info.outputs.docker_image }}"
+          docker push "${{ steps.image-info.outputs.latest_image }}"
+
   deploy-with-ansible:
     name: Deploy Docker Image with Ansible
     runs-on: ubuntu-latest
