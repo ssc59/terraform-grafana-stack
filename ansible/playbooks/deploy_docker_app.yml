@@ -25,16 +25,16 @@
         name: docker
         state: present
 
-    - name: Ensure Docker service is enabled and running
-      ansible.builtin.service:
-        name: docker
-        state: started
-        enabled: true
+    - name: Ensure Python pip is installed
+      ansible.builtin.package:
+        name: python3-pip
+        state: present
 
     - name: Ensure Python Docker SDK is installed
       ansible.builtin.pip:
         name: docker
         state: present
+        executable: pip3
 
     - name: Verify Docker socket exists
       ansible.builtin.stat:
