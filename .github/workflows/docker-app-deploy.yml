@@ -102,7 +102,7 @@ jobs:
           docker build \
             --tag "${{ steps.image-info.outputs.docker_image }}" \
             --tag "${{ steps.image-info.outputs.latest_image }}" \
-            app
+            .
 
       - name: Push Docker images to ECR
         run: |
