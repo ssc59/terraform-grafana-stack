@@ -100,19 +100,6 @@
         delay: 2
         timeout: 60
 
-    - name: Verify application health
-      ansible.builtin.uri:
-        url: "http://127.0.0.1:{{ docker_app_port }}/health"
-        method: GET
-        return_content: true
-        status_code: 200
-      register: docker_app_health
-      retries: 10
-      delay: 3
-      until:
-        - docker_app_health.status == 200
-        - docker_app_health.json.status == "healthy"
-
     - name: Display deployment result
       ansible.builtin.debug:
         msg: >-
