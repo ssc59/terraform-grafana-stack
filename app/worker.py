@@ -25,7 +25,7 @@ def process_employee(employee_number):
 
     TERRAFORM_DIR = (
     Path(__file__).resolve().parent.parent
-    / "terraform-team02"
+    / "terraform-end-user"
     )
 
     print(f"Running Terraform from: {TERRAFORM_DIR}")
