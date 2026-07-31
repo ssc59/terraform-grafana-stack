@@ -23,6 +23,31 @@ env:
   ECR_REPOSITORY: docker-app
 
 jobs:
+  terraform-apply:
+    name: Create EC2 Infrastructure
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::961341543702:role/team02-github-deploy
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-session-name: GitHubActions
+          allowed-account-ids: 961341543702
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init
+        run: terraform -chdir=terraform init
+
+      - name: Terraform apply
+        run: terraform -chdir=terraform apply -auto-approve
+
   build-and-push:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
