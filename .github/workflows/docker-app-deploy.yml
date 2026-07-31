@@ -44,9 +44,7 @@ jobs:
           allowed-account-ids: 961341543702
 
       - name: Verify AWS identity
-        run: |
-          aws sts get-caller-identity
-          aws configure get region
+        run: aws sts get-caller-identity
 
       - name: Verify AWS account and region
         run: |
