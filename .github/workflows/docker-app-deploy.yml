@@ -100,6 +100,7 @@ jobs:
       - name: Build Docker image
         run: |
           docker build \
+            --file app/Dockerfile \
             --tag "${{ steps.image-info.outputs.docker_image }}" \
             --tag "${{ steps.image-info.outputs.latest_image }}" \
             .
