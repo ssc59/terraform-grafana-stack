@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 env:
   AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
@@ -35,11 +36,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::961341543702:role/team02-github-deploy
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-session-name: GitHubActions
+          allowed-account-ids: 961341543702
+
+      - name: Verify AWS identity
+        run: |
+          aws sts get-caller-identity
+          aws configure get region
 
       - name: Verify AWS account and region
         run: |
@@ -141,8 +148,6 @@ jobs:
       - build-and-push
 
     env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       AWS_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       ECR_REPOSITORY: docker-app
@@ -152,11 +157,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::961341543702:role/team02-github-deploy
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-session-name: GitHubActions
+          allowed-account-ids: 961341543702
 
       - name: Install Ansible and AWS dependencies
         run: |
