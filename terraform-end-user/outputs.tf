@@ -1,11 +1,11 @@
 output "vpc_id" {
   description = "TEAM02 VPC ID"
-  value       = aws_vpc.team02.id
+  value       = data.aws_vpc.team02.id
 }
 
 output "subnet_id" {
   description = "TEAM02 public subnet ID"
-  value       = aws_subnet.public.id
+  value       = data.aws_subnet.team02_public.id
 }
 
 output "security_group_id" {

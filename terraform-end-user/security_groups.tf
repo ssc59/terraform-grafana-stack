@@ -1,7 +1,7 @@
 resource "aws_security_group" "ssh" {
   name        = "TEAM02-SSH-SG"
   description = "Allow SSH from the TEAM02 Ansible controller"
-  vpc_id      = aws_vpc.team02.id
+  vpc_id      = data.aws_vpc.team02.id
 
   # SSH from the Ansible controller
   ingress {

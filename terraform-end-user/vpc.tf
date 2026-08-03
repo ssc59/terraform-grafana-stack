@@ -7,7 +7,7 @@ data "aws_subnet" "team02_public" {
 }
 
 resource "aws_internet_gateway" "team02" {
-  vpc_id = data.data.aws_vpc.team02.id
+  vpc_id = data.aws_vpc.team02.id
 
   tags = {
     Name = "TEAM02-IGW"
