@@ -33,12 +33,6 @@ variable "instance_type" {
   default     = "t3.micro"
 }
 
-variable "public_key_path" {
-  description = "Public SSH key previously imported by Ansible"
-  type        = string
-  default     = "~/.ssh/team02_ec2.pub"
-}
-
 variable "team_users" {
   description = "RACF users receiving one EC2 instance each"
   type        = set(string)

@@ -5,9 +5,44 @@ from datetime import datetime
 import subprocess
 import json
 import traceback
+import boto3
 
 import db
 
+
+def fetch_end_user_ssh_key(log):
+    parameter_name = "/team02/end-user/ssh-private-key"
+    key_path = Path("/tmp/team02-end-user-key")
+
+    log.write(
+        f"Downloading SSH private key from SSM parameter: "
+        f"{parameter_name}\n"
+    )
+    log.flush()
+
+    ssm = boto3.client(
+        "ssm",
+        region_name="us-west-1",
+    )
+
+    response = ssm.get_parameter(
+        Name=parameter_name,
+        WithDecryption=True,
+    )
+
+    private_key = response["Parameter"]["Value"]
+
+    key_path.write_text(
+        private_key,
+        encoding="utf-8",
+    )
+
+    key_path.chmod(0o600)
+
+    log.write(f"SSH private key written to: {key_path}\n")
+    log.flush()
+
+    return key_path
 
 '''
 Runs process_employee with threading, to allow for several workers at a time.
@@ -33,6 +68,7 @@ def run_employee_worker(employee_number):
 Creates user AWS instances and user accounts in all systems.
 '''
 def process_employee(employee_number, log_path):
+    ssh_key_path = None
 
     # Create Logs Per User
     with open(log_path, "w", encoding="utf-8") as log:
@@ -77,6 +113,7 @@ def process_employee(employee_number, log_path):
                 text=True,
                 check=True,
             )
+            ssh_key_path = fetch_end_user_ssh_key(log)
 
             
             ansible_vars = {
@@ -119,48 +156,43 @@ def process_employee(employee_number, log_path):
             '''
 
             #Run: sync_user_libraries.yml
-            try:
-                subprocess.run(
-                    [
-                        "ansible-playbook",
-                        "-i",
-                        "inventory/hosts.yml",
-                        "playbooks/sync_user_libraries.yml",
-                        "--extra-vars",
-                        json.dumps(ansible_vars),
-                    ],
-                    cwd=ANSIBLE_DIR,
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    check=True,
-                )
-            except Exception:
-                log.write("\nWORKER FAILED\n")
-                log.write(traceback.format_exc())
-                log.flush()
+            subprocess.run(
+                [
+                    "ansible-playbook",
+                    "-i",
+                    "inventory/hosts.yml",
+                    "playbooks/sync_user_libraries.yml",
+                    "--private-key",
+                    str(ssh_key_path),
+                    "--extra-vars",
+                    json.dumps(ansible_vars),
+                ],
+                cwd=ANSIBLE_DIR,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                text=True,
+                check=True,
+            )
 
             #Run: create_users.yml
-            try:
-                subprocess.run(
-                    [
-                        "ansible-playbook",
-                        "-i",
-                        "inventory/hosts.yml",
-                        "playbooks/create_users.yml",
-                        "--extra-vars",
-                        json.dumps(ansible_vars),
-                    ],
-                    cwd=ANSIBLE_DIR,
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    check=True,
-                )
-            except Exception:
-                log.write("\nWORKER FAILED\n")
-                log.write(traceback.format_exc())
-                log.flush()
+            subprocess.run(
+                [
+                    "ansible-playbook",
+                    "-i",
+                    "inventory/hosts.yml",
+                    "playbooks/create_users.yml",
+                    "--private-key",
+                    str(ssh_key_path),
+                    "--extra-vars",
+                    json.dumps(ansible_vars),
+                ],
+                cwd=ANSIBLE_DIR,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                text=True,
+                check=True,
+            )
+
 
             log.write("\nWorker completed successfully.\n")
             log.flush()
@@ -168,3 +200,9 @@ def process_employee(employee_number, log_path):
             log.write("\nWORKER FAILED\n")
             log.write(traceback.format_exc())
             log.flush()
+
+        finally:
+            if ssh_key_path is not None and ssh_key_path.exists():
+                ssh_key_path.unlink()
+                log.write("\nTemporary SSH private key removed.\n")
+                log.flush()
