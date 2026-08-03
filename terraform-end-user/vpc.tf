@@ -1,25 +1,13 @@
-resource "aws_vpc" "team02" {
-  cidr_block           = var.vpc_cidr
-  enable_dns_support   = true
-  enable_dns_hostnames = true
-
-  tags = {
-    Name = "TEAM02-VPC"
-  }
+data "aws_vpc" "team02" {
+  id = "vpc-0470126a6455c60cd"
 }
 
-resource "aws_subnet" "public" {
-  vpc_id                  = aws_vpc.team02.id
-  cidr_block              = var.subnet_cidr
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "TEAM02-PUBLIC-SUBNET"
-  }
+data "aws_subnet" "team02_public" {
+  id = "subnet-07ee0dd0e0342e11f "
 }
 
 resource "aws_internet_gateway" "team02" {
-  vpc_id = aws_vpc.team02.id
+  vpc_id = data.data.aws_vpc.team02.id
 
   tags = {
     Name = "TEAM02-IGW"
@@ -27,7 +15,7 @@ resource "aws_internet_gateway" "team02" {
 }
 
 resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.team02.id
+  vpc_id = data.aws_vpc.team02.id
 
   route {
     cidr_block = "0.0.0.0/0"
@@ -40,6 +28,6 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route_table_association" "public" {
-  subnet_id      = aws_subnet.public.id
+  subnet_id = data.aws_subnet.team02_public.id
   route_table_id = aws_route_table.public.id
 }
