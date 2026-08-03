@@ -47,6 +47,11 @@ resource "aws_instance" "frontend" {
 
   iam_instance_profile = "team02-frontend-worker"
 
+  root_block_device {
+  volume_size = 30
+  volume_type = "gp3"
+  }
+
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
