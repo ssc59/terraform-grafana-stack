@@ -45,8 +45,16 @@ resource "aws_instance" "frontend" {
   vpc_security_group_ids = [aws_security_group.frontend.id]
   key_name               = aws_key_pair.monitoring.key_name
 
+  iam_instance_profile = "team02-frontend-worker"
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+  }
+
   tags = {
-    Name    = "monitoring-frontend"
+    Name    = "team02-HR-portal-frontend"
     Project = var.project_tag
     Role    = var.frontend_role_tag
   }
@@ -72,7 +80,7 @@ resource "aws_instance" "backend" {
   key_name               = aws_key_pair.monitoring.key_name
 
   tags = {
-    Name    = "monitoring-backend"
+    Name    = "team02-backend"
     Project = var.project_tag
     Role    = var.backend_role_tag
   }
