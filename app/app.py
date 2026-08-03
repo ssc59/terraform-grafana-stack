@@ -1,10 +1,10 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, Response
+from pathlib import Path
+from worker import run_employee_worker
 import db
 
-from worker import run_employee_worker
 
 app = Flask(__name__)
-
 
 @app.route("/")
 def home():
@@ -51,6 +51,25 @@ def create_user():
         name=name,
         employee_number=employee_number,
         zos_uid=zos_uid,
+    )
+
+@app.route("/logs/<employee_number>")
+def worker_log(employee_number):
+    log_path = (
+        Path("/tmp/employee-worker-logs")
+        / f"employee-{employee_number}.log"
+    )
+
+    if not log_path.exists():
+        return Response(
+            "Worker log does not exist yet.",
+            status=404,
+            mimetype="text/plain",
+        )
+
+    return Response(
+        log_path.read_text(encoding="utf-8"),
+        mimetype="text/plain",
     )
 
 
