@@ -15,6 +15,8 @@ RUN apt-get update \
 
 COPY . /workspace
 
+RUN terraform -chdir=/workspace/terraform-end-user init -backend=false
+
 RUN pip install --no-cache-dir -r /workspace/app/requirements.txt
 
 RUN ansible-galaxy collection install ibm.ibm_zos_core
