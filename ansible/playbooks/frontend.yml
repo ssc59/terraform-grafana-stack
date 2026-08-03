@@ -21,6 +21,34 @@
         dest: "{{ config_dir }}/promtail/promtail-config.yml"
         mode: "0644"
 
+    - name: Create Grafana provisioning directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ config_dir }}/grafana/provisioning/datasources"
+        - "{{ config_dir }}/grafana/provisioning/dashboards"
+        - "{{ config_dir }}/grafana/dashboards"
+
+    - name: Provision Grafana datasources
+      ansible.builtin.template:
+        src: ../templates/grafana/provisioning/datasources/datasources.yml.j2
+        dest: "{{ config_dir }}/grafana/provisioning/datasources/datasources.yml"
+        mode: "0644"
+
+    - name: Provision Grafana dashboard provider
+      ansible.builtin.copy:
+        src: ../templates/grafana/provisioning/dashboards/dashboards.yml
+        dest: "{{ config_dir }}/grafana/provisioning/dashboards/dashboards.yml"
+        mode: "0644"
+
+    - name: Provision Grafana monitoring dashboard
+      ansible.builtin.copy:
+        src: ../templates/grafana/dashboards/monitoring-overview.json
+        dest: "{{ config_dir }}/grafana/dashboards/monitoring-overview.json"
+        mode: "0644"
+
     - name: Run Grafana
       community.docker.docker_container:
         name: grafana
@@ -33,6 +61,8 @@
           GF_SECURITY_ADMIN_PASSWORD: "admin"
         volumes:
           - "grafana_data:/var/lib/grafana"
+          - "{{ config_dir }}/grafana/provisioning:/etc/grafana/provisioning:ro,z"
+          - "{{ config_dir }}/grafana/dashboards:/var/lib/grafana/dashboards:ro,z"
 
     - name: Run Pushgateway
       community.docker.docker_container:
@@ -42,6 +72,11 @@
         restart_policy: always
         ports:
           - "9091:9091"
+        command:
+          - "--persistence.file=/data/pushgateway.data"
+          - "--persistence.interval=5m"
+        volumes:
+          - "pushgateway_data:/data"
 
     - name: Run Promtail on frontend
       community.docker.docker_container:

@@ -2,10 +2,10 @@
 plugin: amazon.aws.aws_ec2
 
 regions:
-  - us-west-1
+  - us-east-1
 
 filters:
-  tag:Project: monitoring
+  tag:Project: terraform-grafana-stack
   instance-state-name: running
 
 keyed_groups:

@@ -67,11 +67,10 @@
 
       block:
         - name: Log in to Amazon ECR
-          community.docker.docker_login:
-            registry_url: "{{ ecr_registry }}"
-            username: AWS
-            password: "{{ ecr_password }}"
-            reauthorize: true
+          ansible.builtin.command:
+            cmd: "docker login --username AWS --password-stdin {{ ecr_registry }}"
+            stdin: "{{ ecr_password }}"
+          changed_when: true
           no_log: true
 
         - name: Pull Docker application image
@@ -87,11 +86,13 @@
             state: started
             restart_policy: unless-stopped
             recreate: true
-            pull: never
+            pull: false
             published_ports:
               - "{{ docker_app_port }}:5000"
             env:
               DATABASE_URL: "{{ database_url }}"
+            volumes:
+              - "docker_app_data:/workspace/app/data"
 
     - name: Wait for application port
       ansible.builtin.wait_for:
