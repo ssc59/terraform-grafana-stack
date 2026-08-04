@@ -12,7 +12,7 @@ resource "aws_instance" "team_user" {
   ami                         = data.aws_ssm_parameter.amazon_linux_2023.value
   instance_type               = var.instance_type
   subnet_id                   = data.aws_subnet.team02_public.id
-  vpc_security_group_ids      = [aws_security_group.ssh.id]
+  vpc_security_group_ids      = [data.aws_security_group.ssh.id]
   key_name                    = data.aws_key_pair.team02.key_name
   associate_public_ip_address = true
 

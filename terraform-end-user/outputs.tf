@@ -10,7 +10,7 @@ output "subnet_id" {
 
 output "security_group_id" {
   description = "TEAM02 SSH security group ID"
-  value       = aws_security_group.ssh.id
+  value       = data.aws_security_group.ssh.id
 }
 
 output "instance_information" {
