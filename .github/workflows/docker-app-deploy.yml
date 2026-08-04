@@ -361,6 +361,21 @@ jobs:
             --private-key "${GITHUB_WORKSPACE}/.keys/monitoring.pem" \
             --ssh-common-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes"
 
+      - name: Create z/OS SSH key
+        shell: bash
+        run: |
+          cat > zos-ansible/id_rsa << 'EOF'
+          ${{ secrets.ID_RSA }}
+          EOF
+          chmod 600 zos-ansible/id_rsa
+
+      - name: Verify z/OS SSH key
+        run: |
+          pwd
+          ls -l zos-ansible
+          test -f zos-ansible/id_rsa
+          stat zos-ansible/id_rsa
+
       - name: Deploy Docker application
         shell: bash
         run: |

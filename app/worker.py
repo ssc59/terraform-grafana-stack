@@ -74,7 +74,6 @@ def process_employee(employee_number, log_path):
     with open(log_path, "w", encoding="utf-8") as log:
         try:
             log.write(
-                f"THIS IS A TEST TO SEE IF GIT IS WORKING PROPERLY."
                 f"Started employee worker at {datetime.now()}\n"
                 f"Employee number: {employee_number}\n\n"
             )
