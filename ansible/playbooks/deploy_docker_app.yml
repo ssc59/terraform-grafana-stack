@@ -61,6 +61,22 @@
           - docker_socket.stat.exists
         fail_msg: Docker is installed, but /var/run/docker.sock is unavailable.
 
+    - name: Ensure .ssh directory exists
+      ansible.builtin.file:
+        path: /home/ec2-user/.ssh
+        state: directory
+        owner: ec2-user
+        group: ec2-user
+        mode: "0700"
+
+    - name: Copy z/OS SSH key
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../zos-ansible/id_rsa"
+        dest: /home/ec2-user/.ssh/zos_id_rsa
+        owner: ec2-user
+        group: ec2-user
+        mode: "0600"
+
     - name: Deploy container using Docker SDK virtual environment
       vars:
         ansible_python_interpreter: "{{ docker_sdk_venv }}/bin/python"
@@ -93,6 +109,7 @@
               DATABASE_URL: "{{ database_url }}"
             volumes:
               - "docker_app_data:/workspace/app/data"
+              - "/home/ec2-user/.ssh/zos_id_rsa:/workspace/zos-ansible/id_rsa:ro"
 
     - name: Wait for application port
       ansible.builtin.wait_for:
