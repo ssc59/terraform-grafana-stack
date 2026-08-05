@@ -45,7 +45,6 @@ resource "aws_instance" "frontend" {
   vpc_security_group_ids = [aws_security_group.frontend.id]
   key_name               = aws_key_pair.monitoring.key_name
 
-  iam_instance_profile = "team02-frontend-worker"
 
   root_block_device {
   volume_size = 30
