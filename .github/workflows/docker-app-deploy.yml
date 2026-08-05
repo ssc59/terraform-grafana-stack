@@ -41,7 +41,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::699475916440:role/team02-github-deploy
+          role-to-assume: arn:aws:iam::699475916440:role/team02-actions-deploy
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-session-name: GitHubActions
           allowed-account-ids: 699475916440
@@ -81,7 +81,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::699475916440:role/team02-github-deploy
+          role-to-assume: arn:aws:iam::699475916440:role/team02-actions-deploy
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-session-name: GitHubActions
           allowed-account-ids: 699475916440
@@ -172,7 +172,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::699475916440:role/team02-github-deploy
+          role-to-assume: arn:aws:iam::699475916440:role/team02-actions-deploy
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-session-name: GitHubActions
           allowed-account-ids: 699475916440
