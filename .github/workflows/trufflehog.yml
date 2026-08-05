@@ -29,6 +29,10 @@ jobs:
     needs: trufflehog
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+      pull-requests: write
+
     # Only merge PRs created from branches in this repository.
     # This prevents untrusted fork PRs from being automatically merged.
     if: >
