@@ -41,10 +41,10 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::961341543702:role/team02-github-deploy
+          role-to-assume: arn:aws:iam::699475916440:role/team02-github-deploy
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-session-name: GitHubActions
-          allowed-account-ids: 961341543702
+          allowed-account-ids: 699475916440
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
@@ -81,10 +81,10 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::961341543702:role/team02-github-deploy
+          role-to-assume: arn:aws:iam::699475916440:role/team02-github-deploy
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-session-name: GitHubActions
-          allowed-account-ids: 961341543702
+          allowed-account-ids: 699475916440
 
       - name: Verify AWS identity
         run: aws sts get-caller-identity
@@ -172,10 +172,10 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::961341543702:role/team02-github-deploy
+          role-to-assume: arn:aws:iam::699475916440:role/team02-github-deploy
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-session-name: GitHubActions
-          allowed-account-ids: 961341543702
+          allowed-account-ids: 699475916440
 
       - name: Install Ansible and AWS dependencies
         run: |
