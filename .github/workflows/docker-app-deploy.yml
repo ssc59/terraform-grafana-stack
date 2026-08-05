@@ -55,7 +55,7 @@ jobs:
             -input=false \
             -reconfigure \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
-            -backend-config="key=terraform-grafana-stack/terraform.tfstate" \
+            -backend-config="key=monitoring/terraform.tfstate" \
             -backend-config="region=${{ secrets.AWS_DEFAULT_REGION }}"
 
       - name: Terraform apply
