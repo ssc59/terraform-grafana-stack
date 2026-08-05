@@ -1,61 +1,118 @@
 <!DOCTYPE html>
-
-<html>
-
+<html lang="en">
 <head>
-
-    <title>TEAM02 Provisioning Portal</title>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEAM02 User Provisioning</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
 </head>
 
 <body>
 
-<div class="card">
+<div class="page">
 
-<h1>TEAM02 User Provisioning</h1>
+    <header class="header">
+        <div>
+            <div class="eyebrow">TEAM02</div>
+            <h1>User Provisioning</h1>
+            <p>Add a new employee and provision their environment.</p>
+        </div>
 
-<p>Create a new RACF user and launch the provisioning workflow.</p>
+        <a href="/users" class="nav-button">
+            View Users
+        </a>
+    </header>
 
-<form action="/create-user" method="post">
 
-<label>User ID</label>
-<input
-    type="text"
-    name="user_id"
-    required
->
+    <main class="card">
 
-<label>Full Name</label>
-<input
-    type="text"
-    name="name"
-    required
->
+        <div class="card-header">
+            <h2>Add New User</h2>
+            <p>Enter the employee information below.</p>
+        </div>
 
-<label>Account</label>
-<input
-    type="text"
-    name="account"
-    value="ACCT001"
-    required
->
+        <form action="/create-user" method="POST">
 
-<label>Procedure</label>
-<input
-    type="text"
-    name="procedure"
-    value="DB13PROC"
-    required
->
+            <div class="form-grid">
 
-<button>Create User</button>
+                <div class="form-group">
+                    <label for="user_id">User ID</label>
+                    <input
+                        type="text"
+                        id="user_id"
+                        name="user_id"
+                        maxlength="8"
+                        placeholder="USER100"
+                        required
+                    >
+                    <span class="help">
+                        RACF user ID
+                    </span>
+                </div>
 
-</form>
+
+                <div class="form-group">
+                    <label for="name">Full Name</label>
+                    <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        placeholder="Test User"
+                        required
+                    >
+                </div>
+
+
+                <div class="form-group">
+                    <label for="account">Account</label>
+                    <input
+                        type="text"
+                        id="account"
+                        name="account"
+                        value="ACCT001"
+                        required
+                    >
+                </div>
+
+
+                <div class="form-group">
+                    <label for="procedure">Procedure</label>
+                    <input
+                        type="text"
+                        id="procedure"
+                        name="procedure"
+                        value="DB13PROC"
+                        required
+                    >
+                </div>
+
+            </div>
+
+
+            <div class="auto-info">
+
+                <div>
+                    <span class="auto-label">Employee Number</span>
+                    <strong>Automatically assigned</strong>
+                </div>
+
+                <div>
+                    <span class="auto-label">z/OS UID</span>
+                    <strong>Automatically assigned</strong>
+                </div>
+
+            </div>
+
+
+            <button type="submit" class="primary-button">
+                Provision User
+            </button>
+
+        </form>
+
+    </main>
 
 </div>
 
 </body>
-
 </html>

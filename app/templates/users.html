@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEAM02 Users</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="page">
+
+    <header class="header">
+
+        <div>
+            <div class="eyebrow">TEAM02</div>
+            <h1>User Provisioning</h1>
+            <p>Monitor employee provisioning and infrastructure tasks.</p>
+        </div>
+
+        <a href="/" class="nav-button">
+            + Add User
+        </a>
+
+    </header>
+
+
+    <main>
+
+        <div class="section-title">
+            <h2>Employees</h2>
+            <span id="refresh-indicator">Live status</span>
+        </div>
+
+
+        <div class="users-card">
+
+            {% if employees %}
+
+                <div class="user-table">
+
+                    <div class="table-header">
+                        <span>User</span>
+                        <span>Name</span>
+                        <span>Employee #</span>
+                        <span>z/OS UID</span>
+                        <span>Status</span>
+                    </div>
+
+
+                    {% for employee in employees %}
+
+                    <button
+                        class="user-row"
+                        onclick="openLogs('{{ employee.employee_number }}', '{{ employee.user_id }}')"
+                    >
+
+                        <span class="user-name">
+                            <strong>{{ employee.user_id }}</strong>
+                            <small>{{ employee.account }}</small>
+                        </span>
+
+                        <span>
+                            {{ employee.name }}
+                        </span>
+
+                        <span>
+                            {{ employee.employee_number }}
+                        </span>
+
+                        <span>
+                            {{ employee.zos_uid }}
+                        </span>
+
+                        <span>
+                            <span
+                                class="status-badge status-{{ employee.status|lower|replace(' ', '-') }}"
+                                id="status-{{ employee.employee_number }}"
+                            >
+                                <span class="status-dot"></span>
+                                {{ employee.status }}
+                            </span>
+                        </span>
+
+                    </button>
+
+                    {% endfor %}
+
+                </div>
+
+            {% else %}
+
+                <div class="empty-state">
+                    <div class="empty-icon">◎</div>
+                    <h3>No users yet</h3>
+                    <p>Add your first user to begin provisioning.</p>
+                    <a href="/" class="primary-button">
+                        Add User
+                    </a>
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </main>
+
+</div>
+
+
+<!-- Log Modal -->
+
+<div
+    id="log-modal"
+    class="modal"
+    onclick="closeLogs(event)"
+>
+
+    <div
+        class="modal-card"
+        onclick="event.stopPropagation()"
+    >
+
+        <div class="modal-header">
+
+            <div>
+                <div class="eyebrow">WORKER OUTPUT</div>
+                <h2 id="modal-title">User</h2>
+            </div>
+
+            <button
+                class="close-button"
+                onclick="closeLogs()"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div class="log-status">
+            <span class="status-dot"></span>
+            <span id="modal-status">
+                Provisioning...
+            </span>
+        </div>
+
+
+        <pre id="log-output">Waiting for worker output...</pre>
+
+    </div>
+
+</div>
+
+
+<script>
+
+let currentEmployee = null;
+let logTimer = null;
+
+
+/*
+ * Open the worker log modal.
+ */
+function openLogs(employeeNumber, userId) {
+
+    currentEmployee = employeeNumber;
+
+    document.getElementById("modal-title").textContent =
+        userId + " · Employee " + employeeNumber;
+
+    document.getElementById("log-modal").classList.add("open");
+
+    loadLog();
+
+    if (logTimer) {
+        clearInterval(logTimer);
+    }
+
+    logTimer = setInterval(loadLog, 1500);
+}
+
+
+/*
+ * Retrieve the current worker log.
+ */
+async function loadLog() {
+
+    if (!currentEmployee) {
+        return;
+    }
+
+    try {
+
+        const response = await fetch(
+            "/logs/" + currentEmployee
+        );
+
+        const text = await response.text();
+
+        const output =
+            document.getElementById("log-output");
+
+        output.textContent = text;
+
+        output.scrollTop = output.scrollHeight;
+
+
+        if (text.includes("WORKER FAILED")) {
+
+            document.getElementById("modal-status").textContent =
+                "Failed";
+
+        } else if (
+            text.includes("Worker completed successfully.")
+        ) {
+
+            document.getElementById("modal-status").textContent =
+                "Completed";
+
+        } else {
+
+            document.getElementById("modal-status").textContent =
+                "Provisioning...";
+
+        }
+
+    } catch (error) {
+
+        document.getElementById("log-output").textContent =
+            "Unable to retrieve worker output.";
+
+    }
+}
+
+
+/*
+ * Close the modal.
+ */
+function closeLogs(event) {
+
+    if (event && event.target !== event.currentTarget) {
+        return;
+    }
+
+    document
+        .getElementById("log-modal")
+        .classList.remove("open");
+
+    if (logTimer) {
+        clearInterval(logTimer);
+        logTimer = null;
+    }
+
+    currentEmployee = null;
+}
+
+
+/*
+ * Refresh the entire user list periodically so statuses
+ * change without manually refreshing the page.
+ */
+setInterval(() => {
+
+    fetch("/users")
+        .then(response => response.text())
+        .then(html => {
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(
+                html,
+                "text/html"
+            );
+
+            const newRows =
+                doc.querySelector(".user-table");
+
+            const currentRows =
+                document.querySelector(".user-table");
+
+            if (newRows && currentRows) {
+                currentRows.innerHTML =
+                    newRows.innerHTML;
+            }
+
+        })
+        .catch(() => {});
+
+}, 3000);
+
+</script>
+
+</body>
+</html>
