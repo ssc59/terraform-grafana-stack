@@ -5,3 +5,4 @@ pymysql
 gunicorn
 ansible
 boto3
+prometheus-client
