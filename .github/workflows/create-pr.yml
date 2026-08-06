@@ -12,30 +12,55 @@ jobs:
   create-pr:
     runs-on: ubuntu-latest
 
+    env:
+      TARGET_REPOSITORY: ssc59/terraform-grafana-stack
+      HEAD_BRANCH: development
+      BASE_BRANCH: main
+      GH_TOKEN: ${{ secrets.PR_TOKEN }}
+
     steps:
-      - name: Check for existing pull request
-        id: existing-pr
-        env:
-          GH_TOKEN: ${{ secrets.PR_TOKEN }}
+      - name: Verify target repository
         run: |
-          PR_COUNT=$(gh pr list \
-            --repo "ssc59/terraform-grafana-stack" \
-            --head "ssc59:development" \
-            --base main \
-            --state open \
-            --json number \
-            --jq 'length')
+          set -euo pipefail
 
-          echo "count=$PR_COUNT" >> "$GITHUB_OUTPUT"
+          echo "Workflow repository: $GITHUB_REPOSITORY"
+          echo "PR target repository: $TARGET_REPOSITORY"
+          echo "PR direction: $HEAD_BRANCH -> $BASE_BRANCH"
 
-      - name: Create pull request
-        if: steps.existing-pr.outputs.count == '0'
-        env:
-          GH_TOKEN: ${{ secrets.PR_TOKEN }}
+          if [ "$GITHUB_REPOSITORY" != "$TARGET_REPOSITORY" ]; then
+            echo "::error::Workflow is running in unexpected repository: $GITHUB_REPOSITORY"
+            exit 1
+          fi
+
+      - name: Create pull request when missing
         run: |
-          gh pr create \
-            --repo "ssc59/terraform-grafana-stack" \
-            --base main \
-            --head "ssc59:development" \
-            --title "Merge development into main" \
-            --body "Automatically created after a push to development."
+          set -euo pipefail
+
+          HEAD_OWNER="${TARGET_REPOSITORY%%/*}"
+          HEAD_FILTER="${HEAD_OWNER}:${HEAD_BRANCH}"
+
+          EXISTING_PR=$(gh api \
+            --method GET \
+            "repos/${TARGET_REPOSITORY}/pulls" \
+            -f state=open \
+            -f base="$BASE_BRANCH" \
+            -f head="$HEAD_FILTER" \
+            --jq '.[0].html_url // empty')
+
+          if [ -n "$EXISTING_PR" ]; then
+            echo "An open pull request already exists:"
+            echo "$EXISTING_PR"
+            exit 0
+          fi
+
+          PR_URL=$(gh api \
+            --method POST \
+            "repos/${TARGET_REPOSITORY}/pulls" \
+            -f title="Merge development into main" \
+            -f body="Automatically created after a push to development." \
+            -f head="$HEAD_BRANCH" \
+            -f base="$BASE_BRANCH" \
+            --jq '.html_url')
+
+          echo "Created pull request:"
+          echo "$PR_URL"
