@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - development
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,8 +19,8 @@ jobs:
           GH_TOKEN: ${{ secrets.PR_TOKEN }}
         run: |
           PR_COUNT=$(gh pr list \
-            --repo "${{ github.repository }}" \
-            --head development \
+            --repo "ssc59/terraform-grafana-stack" \
+            --head "ssc59:development" \
             --base main \
             --state open \
             --json number \
@@ -35,8 +34,8 @@ jobs:
           GH_TOKEN: ${{ secrets.PR_TOKEN }}
         run: |
           gh pr create \
-            --repo "${{ github.repository }}" \
+            --repo "ssc59/terraform-grafana-stack" \
             --base main \
-            --head development \
+            --head "ssc59:development" \
             --title "Merge development into main" \
-            --body "Automatically created after a push to the development branch."
+            --body "Automatically created after a push to development."
